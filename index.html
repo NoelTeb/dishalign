@@ -252,51 +252,139 @@
   .elevation-wrap { display: flex; flex-direction: column; align-items: center; padding: 8px 0; }
   #elevCanvas { }
 
-  /* AR VIEW */
-  #arPanel { position: relative; }
+  /* AR VIEW - FULLSCREEN */
+  #panel-ar {
+    position: fixed !important;
+    inset: 0;
+    z-index: 500;
+    padding: 0 !important;
+    background: #000;
+    display: none;
+    flex-direction: column;
+  }
+  #panel-ar.active { display: flex; }
+
   #arVideo {
+    position: absolute;
+    inset: 0;
     width: 100%;
-    border-radius: 10px;
+    height: 100%;
+    object-fit: cover;
     display: block;
     background: #000;
-    max-height: 300px;
-    object-fit: cover;
   }
-  .ar-overlay {
+  #arCanvas {
     position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+  .ar-no-support {
+    position: absolute;
+    inset: 0;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    background: var(--bg);
+    color: var(--text-dim);
+    padding: 32px;
+    text-align: center;
+  }
+  /* Top bar inside AR */
+  .ar-topbar {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.75) 0%, transparent 100%);
     pointer-events: none;
   }
-  #arCanvas { position: absolute; top: 0; left: 0; border-radius: 10px; }
+  .ar-topbar-btn {
+    pointer-events: all;
+    background: rgba(0,0,0,0.5);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: #fff;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 1px;
+    cursor: pointer;
+  }
+  .ar-sat-label {
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--accent);
+    letter-spacing: 2px;
+    text-shadow: 0 0 12px rgba(0,212,255,0.8);
+  }
+  /* Big delta numbers */
+  .ar-delta-overlay {
+    position: absolute;
+    top: 50%;
+    left: 0; right: 0;
+    transform: translateY(-140px);
+    z-index: 10;
+    display: flex;
+    justify-content: space-around;
+    pointer-events: none;
+    padding: 0 20px;
+  }
+  .ar-delta-box {
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(6px);
+    border-radius: 12px;
+    padding: 10px 18px;
+    text-align: center;
+    min-width: 110px;
+  }
+  .ar-delta-label {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.5);
+    margin-bottom: 2px;
+  }
+  .ar-delta-value {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 36px;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .ar-delta-unit {
+    font-size: 12px;
+    color: rgba(255,255,255,0.4);
+    margin-top: 2px;
+  }
+  /* Direction arrows */
+  .ar-arrow-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 9;
+    pointer-events: none;
+  }
+  /* Bottom HUD */
   .ar-hud {
     position: absolute;
-    bottom: 16px;
-    left: 12px;
-    right: 12px;
-    background: rgba(0,0,0,0.6);
-    backdrop-filter: blur(8px);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 8px 12px;
+    bottom: 0; left: 0; right: 0;
+    z-index: 10;
+    background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%);
+    padding: 20px 16px 24px;
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 4px;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 6px;
     pointer-events: none;
   }
   .ar-stat { text-align: center; }
-  .ar-stat-label { font-size: 9px; color: var(--text-dim); letter-spacing: 1px; text-transform: uppercase; }
-  .ar-stat-value { font-family: 'Share Tech Mono', monospace; font-size: 13px; color: var(--accent); }
-  .ar-no-support {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 40px 20px;
-    text-align: center;
-    color: var(--text-dim);
-  }
+  .ar-stat-label { font-size: 9px; color: rgba(255,255,255,0.4); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 2px; }
+  .ar-stat-value { font-family: 'Share Tech Mono', monospace; font-size: 15px; color: var(--accent); }
 
   /* SKY MAP */
   #skyMapCanvas { display: block; margin: 0 auto; border-radius: 50%; }
@@ -619,74 +707,105 @@
 
   </div>
 
-  <!-- ===== AR TAB ===== -->
+  <!-- ===== AR TAB - FULLSCREEN ===== -->
   <div class="panel" id="panel-ar">
-    <div class="card">
-      <div class="card-title">📷 AR Pointer View</div>
-      <div id="arContainer">
-        <div class="ar-no-support" id="arNoSupport">
-          <div style="font-size:40px;margin-bottom:12px">📷</div>
-          <div style="font-weight:600;margin-bottom:6px">Camera not started</div>
-          <div style="font-size:12px;margin-bottom:16px">Point your phone at the sky and the target will guide you to the satellite.</div>
-          <button class="btn btn-primary" onclick="startAR()">▶ Start AR Camera</button>
+
+    <!-- No support / start screen -->
+    <div class="ar-no-support" id="arNoSupport">
+      <div style="font-size:56px;margin-bottom:16px">📡</div>
+      <div style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:22px;color:var(--text);margin-bottom:8px">AR Pointer View</div>
+      <div style="font-size:13px;margin-bottom:8px;max-width:280px;line-height:1.6">Point your phone at the sky. The crosshair and arrows guide you to the satellite in real time.</div>
+      <div style="font-size:11px;color:var(--warn);margin-bottom:24px;max-width:280px;line-height:1.5">⚠️ Select satellite and set location on ALIGN tab first.</div>
+      <button class="btn btn-primary" style="font-size:16px;padding:14px 32px" onclick="startAR()">▶ Start Camera</button>
+      <button class="btn btn-secondary mt-8" style="font-size:13px" onclick="requestOrientationPermission()">🔑 Enable Sensors Only</button>
+    </div>
+
+    <!-- Active AR view -->
+    <div id="arActive" style="display:none;position:absolute;inset:0">
+      <video id="arVideo" autoplay playsinline muted></video>
+      <canvas id="arCanvas"></canvas>
+
+      <!-- Top bar -->
+      <div class="ar-topbar">
+        <button class="ar-topbar-btn" onclick="stopAR()">✕ Exit</button>
+        <div class="ar-sat-label" id="arSatLabel">--</div>
+        <button class="ar-topbar-btn" onclick="requestOrientationPermission()">🔑 Sensors</button>
+      </div>
+
+      <!-- Big delta numbers -->
+      <div class="ar-delta-overlay">
+        <div class="ar-delta-box">
+          <div class="ar-delta-label">◀ ▶ Azimuth</div>
+          <div class="ar-delta-value" id="arDeltaAz" style="color:var(--accent)">--</div>
+          <div class="ar-delta-unit">degrees off</div>
         </div>
-        <div id="arActive" style="display:none;position:relative">
-          <video id="arVideo" autoplay playsinline muted></video>
-          <canvas id="arCanvas"></canvas>
-          <div class="ar-hud">
-            <div class="ar-stat">
-              <div class="ar-stat-label">Phone Az</div>
-              <div class="ar-stat-value" id="arPhoneAz">--°</div>
-            </div>
-            <div class="ar-stat">
-              <div class="ar-stat-label">Target Az</div>
-              <div class="ar-stat-value" id="arTargetAz">--°</div>
-            </div>
-            <div class="ar-stat">
-              <div class="ar-stat-label">Δ Azimuth</div>
-              <div class="ar-stat-value" id="arDeltaAz" style="color:var(--accent3)">--°</div>
-            </div>
-            <div class="ar-stat">
-              <div class="ar-stat-label">Phone El</div>
-              <div class="ar-stat-value" id="arPhoneEl">--°</div>
-            </div>
-            <div class="ar-stat">
-              <div class="ar-stat-label">Target El</div>
-              <div class="ar-stat-value" id="arTargetEl">--°</div>
-            </div>
-            <div class="ar-stat">
-              <div class="ar-stat-label">Δ Elevation</div>
-              <div class="ar-stat-value" id="arDeltaEl" style="color:var(--accent3)">--°</div>
-            </div>
+        <div class="ar-delta-box">
+          <div class="ar-delta-label">▲ ▼ Elevation</div>
+          <div class="ar-delta-value" id="arDeltaEl" style="color:var(--accent3)">--</div>
+          <div class="ar-delta-unit">degrees off</div>
+        </div>
+      </div>
+
+      <!-- Bottom HUD -->
+      <div class="ar-hud">
+        <div class="ar-stat">
+          <div class="ar-stat-label">Phone Az</div>
+          <div class="ar-stat-value" id="arPhoneAz">--°</div>
+        </div>
+        <div class="ar-stat">
+          <div class="ar-stat-label">Target Az</div>
+          <div class="ar-stat-value" id="arTargetAz">--°</div>
+        </div>
+        <div class="ar-stat">
+          <div class="ar-stat-label">Phone El</div>
+          <div class="ar-stat-value" id="arPhoneEl">--°</div>
+        </div>
+        <div class="ar-stat">
+          <div class="ar-stat-label">Target El</div>
+          <div class="ar-stat-value" id="arTargetEl">--°</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sensors-only fallback (no camera) -->
+    <div id="arSensorOnly" style="display:none;padding:16px;overflow-y:auto">
+      <div class="card">
+        <div class="card-title">📱 Device Orientation</div>
+        <div class="metrics-grid">
+          <div class="metric">
+            <div class="metric-label">Heading</div>
+            <div class="metric-value" id="devHeading" style="color:var(--accent);font-size:18px">--</div>
+            <div class="metric-unit">degrees</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Tilt (El)</div>
+            <div class="metric-value" id="devTilt" style="color:var(--accent3);font-size:18px">--</div>
+            <div class="metric-unit">degrees</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Roll</div>
+            <div class="metric-value" id="devRoll" style="color:var(--accent2);font-size:18px">--</div>
+            <div class="metric-unit">degrees</div>
           </div>
         </div>
       </div>
-      <div style="font-size:11px;color:var(--text-dim);margin-top:10px;line-height:1.6">
-        Point your phone camera toward the sky in the direction of the satellite. The crosshair shows where to aim. Δ values show offset to correct — aim to get both near 0°.<br><br>
-        ⚠️ Requires device orientation permission and camera. Works best outdoors in the satellite direction.
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-title">📱 Device Orientation</div>
-      <div class="metrics-grid">
-        <div class="metric">
-          <div class="metric-label">Heading</div>
-          <div class="metric-value" id="devHeading" style="color:var(--accent);font-size:18px">--</div>
-          <div class="metric-unit">degrees</div>
-        </div>
-        <div class="metric">
-          <div class="metric-label">Tilt (El)</div>
-          <div class="metric-value" id="devTilt" style="color:var(--accent3);font-size:18px">--</div>
-          <div class="metric-unit">degrees</div>
-        </div>
-        <div class="metric">
-          <div class="metric-label">Roll</div>
-          <div class="metric-value" id="devRoll" style="color:var(--accent2);font-size:18px">--</div>
-          <div class="metric-unit">degrees</div>
+      <div class="card">
+        <div class="card-title">🎯 Live Delta</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;text-align:center">
+          <div>
+            <div style="font-size:11px;color:var(--text-dim);letter-spacing:1px;margin-bottom:6px">◀ ▶ AZIMUTH OFF</div>
+            <div id="soAzDelta" style="font-family:'Share Tech Mono',monospace;font-size:40px;color:var(--accent)">--</div>
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--text-dim);letter-spacing:1px;margin-bottom:6px">▲ ▼ ELEVATION OFF</div>
+            <div id="soElDelta" style="font-family:'Share Tech Mono',monospace;font-size:40px;color:var(--accent3)">--</div>
+          </div>
         </div>
       </div>
-      <button class="btn btn-secondary btn-full mt-8" onclick="requestOrientationPermission()">🔑 Enable Sensors</button>
+      <button class="btn btn-primary btn-full mt-8" onclick="startAR()">📷 Start Camera Too</button>
+      <button class="btn btn-secondary btn-full mt-8" onclick="showArStart()">← Back</button>
     </div>
+
   </div>
 
   <!-- ===== SIGNAL TAB ===== -->
@@ -916,7 +1035,19 @@ function switchTab(name) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.getElementById('panel-' + name).classList.add('active');
   document.getElementById('tab-' + name).classList.add('active');
-  if (name === 'ar') startARSensors();
+  if (name === 'ar') {
+    const arActive = document.getElementById('arActive');
+    if (arActive.style.display !== 'none') {
+      document.querySelector('header').style.display = 'none';
+      document.querySelector('.tabs').style.display = 'none';
+      document.querySelector('.status-bar').style.display = 'none';
+    }
+    startARSensors();
+  } else {
+    document.querySelector('header').style.display = '';
+    document.querySelector('.tabs').style.display = '';
+    document.querySelector('.status-bar').style.display = '';
+  }
 }
 
 // ============================================================
@@ -1383,24 +1514,57 @@ function checkObstruction() {
 // ============================================================
 let arAnimFrame = null;
 
+function showArStart() {
+  document.getElementById('arNoSupport').style.display = 'flex';
+  document.getElementById('arActive').style.display = 'none';
+  document.getElementById('arSensorOnly').style.display = 'none';
+}
+
 async function startAR() {
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false });
     state.arStream = stream;
     const video = document.getElementById('arVideo');
     video.srcObject = stream;
-    video.onloadedmetadata = () => {
-      const arCanvas = document.getElementById('arCanvas');
-      arCanvas.width = video.videoWidth || video.clientWidth;
-      arCanvas.height = video.videoHeight || video.clientHeight;
-    };
+    video.play();
+
     document.getElementById('arNoSupport').style.display = 'none';
+    document.getElementById('arSensorOnly').style.display = 'none';
     document.getElementById('arActive').style.display = '';
+
+    // Hide main chrome for true fullscreen
+    document.querySelector('header').style.display = 'none';
+    document.querySelector('.tabs').style.display = 'none';
+    document.querySelector('.status-bar').style.display = 'none';
+
+    // Size canvas to full window
+    const canvas = document.getElementById('arCanvas');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    document.getElementById('arSatLabel').textContent = state.satName || 'No satellite';
+
     requestOrientationPermission();
+    if (arAnimFrame) cancelAnimationFrame(arAnimFrame);
     drawARLoop();
   } catch (e) {
-    alert('Camera access denied or not available. ' + e.message);
+    alert('Camera access denied or not available: ' + e.message);
   }
+}
+
+function stopAR() {
+  if (state.arStream) {
+    state.arStream.getTracks().forEach(t => t.stop());
+    state.arStream = null;
+  }
+  if (arAnimFrame) { cancelAnimationFrame(arAnimFrame); arAnimFrame = null; }
+  document.getElementById('arActive').style.display = 'none';
+  document.getElementById('arNoSupport').style.display = 'flex';
+  // Restore chrome
+  document.querySelector('header').style.display = '';
+  document.querySelector('.tabs').style.display = '';
+  document.querySelector('.status-bar').style.display = '';
+  switchTab('align');
 }
 
 function startARSensors() {
@@ -1420,119 +1584,183 @@ async function requestOrientationPermission() {
 }
 
 function listenOrientation() {
+  window.removeEventListener('deviceorientationabsolute', handleOrientation, true);
+  window.removeEventListener('deviceorientation', handleOrientation, true);
   window.addEventListener('deviceorientationabsolute', handleOrientation, true);
   window.addEventListener('deviceorientation', handleOrientation, true);
   setStatus('sensor', 'ok', 'Sensors active');
 }
 
 function handleOrientation(e) {
-  let heading = e.alpha; // compass heading (0=North)
-  let tilt = e.beta;     // front-back tilt (-180 to 180)
-  let roll = e.gamma;    // left-right roll (-90 to 90)
+  let heading = e.alpha;
+  let tilt = e.beta;
+  let roll = e.gamma;
 
-  if (e.webkitCompassHeading !== undefined) {
-    heading = e.webkitCompassHeading;
-  }
+  if (e.webkitCompassHeading !== undefined) heading = e.webkitCompassHeading;
 
   if (heading !== null) {
     state.heading = heading;
-    document.getElementById('devHeading').textContent = heading.toFixed(0) + '°';
-    document.getElementById('arPhoneAz').textContent = heading.toFixed(0) + '°';
+    const hEl = document.getElementById('devHeading');
+    if (hEl) hEl.textContent = heading.toFixed(0) + '°';
+    const arPhAz = document.getElementById('arPhoneAz');
+    if (arPhAz) arPhAz.textContent = heading.toFixed(0) + '°';
 
     if (state.azimuth !== null) {
       let delta = ((state.azimuth - heading + 540) % 360) - 180;
-      document.getElementById('arDeltaAz').textContent = (delta >= 0 ? '+' : '') + delta.toFixed(0) + '°';
-      document.getElementById('arDeltaAz').style.color = Math.abs(delta) < 5 ? '#00ff88' : Math.abs(delta) < 15 ? '#ffcc00' : '#ff3355';
+      const arDeltaAz = document.getElementById('arDeltaAz');
+      const soAzDelta = document.getElementById('soAzDelta');
+      const color = Math.abs(delta) < 5 ? '#00ff88' : Math.abs(delta) < 15 ? '#ffcc00' : '#ff3355';
+      const txt = (delta >= 0 ? '+' : '') + delta.toFixed(0) + '°';
+      if (arDeltaAz) { arDeltaAz.textContent = txt; arDeltaAz.style.color = color; }
+      if (soAzDelta) { soAzDelta.textContent = txt; soAzDelta.style.color = color; }
     }
   }
 
   if (tilt !== null) {
-    // Convert beta to elevation-like angle
-    // When phone is flat: beta=0. Pointing up: beta=-90. Portrait facing up: around 90.
     const el = 90 - Math.abs(tilt);
     state.tilt = el;
-    document.getElementById('devTilt').textContent = el.toFixed(0) + '°';
-    document.getElementById('arPhoneEl').textContent = el.toFixed(0) + '°';
+    const dtEl = document.getElementById('devTilt');
+    if (dtEl) dtEl.textContent = el.toFixed(0) + '°';
+    const arPhEl = document.getElementById('arPhoneEl');
+    if (arPhEl) arPhEl.textContent = el.toFixed(0) + '°';
 
     if (state.elevation !== null) {
       let delta = state.elevation - el;
-      document.getElementById('arDeltaEl').textContent = (delta >= 0 ? '+' : '') + delta.toFixed(0) + '°';
-      document.getElementById('arDeltaEl').style.color = Math.abs(delta) < 3 ? '#00ff88' : Math.abs(delta) < 10 ? '#ffcc00' : '#ff3355';
+      const arDeltaEl = document.getElementById('arDeltaEl');
+      const soElDelta = document.getElementById('soElDelta');
+      const color = Math.abs(delta) < 3 ? '#00ff88' : Math.abs(delta) < 10 ? '#ffcc00' : '#ff3355';
+      const txt = (delta >= 0 ? '+' : '') + delta.toFixed(0) + '°';
+      if (arDeltaEl) { arDeltaEl.textContent = txt; arDeltaEl.style.color = color; }
+      if (soElDelta) { soElDelta.textContent = txt; soElDelta.style.color = color; }
     }
   }
 
   if (roll !== null) {
     state.roll = roll;
-    document.getElementById('devRoll').textContent = roll.toFixed(0) + '°';
+    const drEl = document.getElementById('devRoll');
+    if (drEl) drEl.textContent = roll.toFixed(0) + '°';
   }
 }
 
 function drawARLoop() {
   const canvas = document.getElementById('arCanvas');
-  if (!canvas) return;
-  const video = document.getElementById('arVideo');
-  if (canvas.width !== video.clientWidth) canvas.width = video.clientWidth;
-  if (canvas.height !== video.clientHeight) canvas.height = video.clientHeight;
+  if (!canvas || document.getElementById('arActive').style.display === 'none') return;
+
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+
   const ctx = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
   ctx.clearRect(0, 0, W, H);
-
   const cx = W / 2, cy = H / 2;
 
-  // Crosshair (target)
-  const tColor = '#00d4ff';
-  ctx.strokeStyle = tColor; ctx.lineWidth = 2;
-  ctx.shadowBlur = 10; ctx.shadowColor = tColor;
+  const hasSat = state.azimuth !== null;
+  const hasSensor = state.heading !== null;
 
-  // Corner brackets
-  const bSize = 20;
-  [[-1, -1], [1, -1], [1, 1], [-1, 1]].forEach(([sx, sy]) => {
-    const bx = cx + sx * 40;
-    const by = cy + sy * 40;
+  let deltaAz = hasSat && hasSensor ? ((state.azimuth - state.heading + 540) % 360) - 180 : null;
+  let deltaEl = hasSat && state.tilt !== null ? state.elevation - state.tilt : null;
+
+  const locked = deltaAz !== null && deltaEl !== null && Math.abs(deltaAz) < 5 && Math.abs(deltaEl) < 3;
+
+  // ---- CROSSHAIR ----
+  const crossColor = locked ? '#00ff88' : '#00d4ff';
+  const crossSize = 50;
+  const armLen = 24;
+  ctx.shadowBlur = 18; ctx.shadowColor = crossColor;
+  ctx.strokeStyle = crossColor; ctx.lineWidth = 2.5;
+
+  // Four corner brackets
+  [[-1,-1],[1,-1],[1,1],[-1,1]].forEach(([sx, sy]) => {
+    const bx = cx + sx * crossSize;
+    const by = cy + sy * crossSize;
     ctx.beginPath();
-    ctx.moveTo(bx, by + sy * bSize); ctx.lineTo(bx, by); ctx.lineTo(bx + sx * bSize, by);
+    ctx.moveTo(bx, by + sy * armLen);
+    ctx.lineTo(bx, by);
+    ctx.lineTo(bx + sx * armLen, by);
     ctx.stroke();
   });
 
+  // Center dot
+  ctx.beginPath(); ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+  ctx.fillStyle = crossColor; ctx.fill();
+
+  // Center cross lines (short)
+  ctx.beginPath();
+  ctx.moveTo(cx - 12, cy); ctx.lineTo(cx + 12, cy);
+  ctx.moveTo(cx, cy - 12); ctx.lineTo(cx, cy + 12);
+  ctx.stroke();
   ctx.shadowBlur = 0;
 
-  // Delta arrows
-  if (state.azimuth !== null && state.heading !== null) {
-    let deltaAz = ((state.azimuth - state.heading + 540) % 360) - 180;
-    let deltaEl = state.elevation !== null && state.tilt !== null ? state.elevation - state.tilt : 0;
+  // ---- LOCKED RING ----
+  if (locked) {
+    ctx.beginPath(); ctx.arc(cx, cy, crossSize + 10, 0, Math.PI * 2);
+    ctx.strokeStyle = '#00ff88'; ctx.lineWidth = 3;
+    ctx.shadowBlur = 24; ctx.shadowColor = '#00ff88';
+    ctx.stroke(); ctx.shadowBlur = 0;
 
-    const arrowX = cx + Math.max(-80, Math.min(80, deltaAz * 2));
-    const arrowY = cy - Math.max(-80, Math.min(80, deltaEl * 2));
+    ctx.font = 'bold 18px Rajdhani, sans-serif';
+    ctx.fillStyle = '#00ff88'; ctx.textAlign = 'center';
+    ctx.fillText('✓ LOCKED ON', cx, cy + crossSize + 32);
+  }
 
-    // Direction indicator
-    if (Math.abs(deltaAz) > 5 || Math.abs(deltaEl) > 3) {
-      ctx.strokeStyle = '#ffcc00'; ctx.lineWidth = 2;
-      ctx.shadowBlur = 8; ctx.shadowColor = '#ffcc00';
-      ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      ctx.lineTo(arrowX, arrowY);
-      ctx.stroke();
-      ctx.shadowBlur = 0;
+  // ---- DIRECTION ARROWS ----
+  if (deltaAz !== null && !locked) {
+    const arrowPad = 60;
+    const arrowSize = 22;
 
-      // Arrowhead at target point
-      ctx.beginPath(); ctx.arc(arrowX, arrowY, 6, 0, Math.PI * 2);
-      ctx.fillStyle = '#ffcc00'; ctx.fill();
-    } else {
-      // Locked indicator
-      ctx.beginPath(); ctx.arc(cx, cy, 14, 0, Math.PI * 2);
-      ctx.strokeStyle = '#00ff88'; ctx.lineWidth = 3;
-      ctx.shadowBlur = 16; ctx.shadowColor = '#00ff88';
-      ctx.stroke(); ctx.shadowBlur = 0;
+    // LEFT arrow
+    if (deltaAz < -5) {
+      const intensity = Math.min(1, Math.abs(deltaAz) / 30);
+      drawArrow(ctx, arrowPad, cy, 'left', intensity);
+    }
+    // RIGHT arrow
+    if (deltaAz > 5) {
+      const intensity = Math.min(1, Math.abs(deltaAz) / 30);
+      drawArrow(ctx, W - arrowPad, cy, 'right', intensity);
+    }
+    // UP arrow (elevation too low — need to tilt up)
+    if (deltaEl !== null && deltaEl > 3) {
+      const intensity = Math.min(1, Math.abs(deltaEl) / 20);
+      drawArrow(ctx, cx, arrowPad, 'up', intensity);
+    }
+    // DOWN arrow (elevation too high)
+    if (deltaEl !== null && deltaEl < -3) {
+      const intensity = Math.min(1, Math.abs(deltaEl) / 20);
+      drawArrow(ctx, cx, H - arrowPad, 'down', intensity);
     }
   }
 
-  // Satellite name
-  ctx.font = 'bold 12px Rajdhani, sans-serif';
-  ctx.fillStyle = '#00d4ff';
-  ctx.textAlign = 'center';
-  ctx.fillText(state.satName || 'No satellite selected', cx, 20);
+  // ---- HORIZON LINE ----
+  ctx.beginPath();
+  ctx.moveTo(cx - 80, cy); ctx.lineTo(cx - crossSize - 10, cy);
+  ctx.moveTo(cx + crossSize + 10, cy); ctx.lineTo(cx + 80, cy);
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 1; ctx.stroke();
 
   arAnimFrame = requestAnimationFrame(drawARLoop);
+}
+
+function drawArrow(ctx, x, y, dir, intensity) {
+  const size = 28 + intensity * 14;
+  const alpha = 0.5 + intensity * 0.5;
+  const color = intensity > 0.6 ? `rgba(255,51,85,${alpha})` : `rgba(255,204,0,${alpha})`;
+
+  ctx.save();
+  ctx.translate(x, y);
+  if (dir === 'right') ctx.rotate(0);
+  else if (dir === 'left') ctx.rotate(Math.PI);
+  else if (dir === 'up') ctx.rotate(-Math.PI / 2);
+  else if (dir === 'down') ctx.rotate(Math.PI / 2);
+
+  ctx.shadowBlur = 16; ctx.shadowColor = color;
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(size, 0);
+  ctx.lineTo(-size * 0.5, -size * 0.55);
+  ctx.lineTo(-size * 0.5, size * 0.55);
+  ctx.closePath();
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.restore();
 }
 
 // ============================================================
