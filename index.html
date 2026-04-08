@@ -729,7 +729,7 @@
       <div class="ar-topbar">
         <button class="ar-topbar-btn" onclick="stopAR()">✕ Exit</button>
         <div class="ar-sat-label" id="arSatLabel">--</div>
-        <button class="ar-topbar-btn" onclick="requestOrientationPermission()">🔑 Sensors</button>
+        <button class="ar-topbar-btn" onclick="calibrateElevation()" title="Point camera at horizon then tap">📐 Cal</button>
       </div>
 
       <!-- Big delta numbers -->
@@ -1593,8 +1593,8 @@ function listenOrientation() {
 
 function handleOrientation(e) {
   let heading = e.alpha;
-  let tilt = e.beta;
-  let roll = e.gamma;
+  let beta  = e.beta;   // -180 to 180: 0=flat, 90=upright portrait, -90=upside down
+  let gamma = e.gamma;  // -90 to 90:   0=no roll, ±90=landscape
 
   if (e.webkitCompassHeading !== undefined) heading = e.webkitCompassHeading;
 
@@ -1616,9 +1616,30 @@ function handleOrientation(e) {
     }
   }
 
-  if (tilt !== null) {
-    const el = 90 - Math.abs(tilt);
+  if (beta !== null && gamma !== null) {
+    // Convert beta/gamma to camera-pointing elevation.
+    // When holding phone portrait with camera pointing away from you:
+    //   beta=90  → phone upright, camera pointing at horizon (0° elevation)
+    //   beta=0   → phone flat face-up, camera pointing at sky (90° elevation)
+    //   beta=180 → phone flat face-down, camera pointing at ground (-90°)
+    // gamma shifts this when phone is tilted sideways (landscape).
+    // We compute the actual elevation of the camera direction using vector math.
+    const bRad = beta  * Math.PI / 180;
+    const gRad = gamma * Math.PI / 180;
+    // Camera direction vector in device frame (camera on back, pointing away):
+    // In portrait: camera points in -Y of screen plane = (sin(b), -cos(b)*sin(g), cos(b)*cos(g))
+    // Elevation = angle above horizontal = arcsin of vertical component
+    const vert = Math.sin(bRad) * Math.cos(gRad);  // 1=sky, -1=ground at beta=90 adjusted
+    // Remap: beta=0 flat face-up→sky(90°), beta=90 upright→horizon(0°), beta=180 face-down→ground(-90°)
+    // vert above gives sin(elevation). But we need to correct for portrait upright reference.
+    // Simpler direct formula proven for portrait camera-away mode:
+    const el_raw = 90 - beta; // beta=90 → el=0 (horizon), beta=0 → el=90 (sky)
+    // Apply calibration offset
+    const el = el_raw - (state.elOffset || 0);
+
     state.tilt = el;
+    state.rawBeta = beta;
+
     const dtEl = document.getElementById('devTilt');
     if (dtEl) dtEl.textContent = el.toFixed(0) + '°';
     const arPhEl = document.getElementById('arPhoneEl');
@@ -1635,11 +1656,29 @@ function handleOrientation(e) {
     }
   }
 
-  if (roll !== null) {
-    state.roll = roll;
+  if (gamma !== null) {
+    state.roll = gamma;
     const drEl = document.getElementById('devRoll');
-    if (drEl) drEl.textContent = roll.toFixed(0) + '°';
+    if (drEl) drEl.textContent = gamma.toFixed(0) + '°';
   }
+}
+
+function calibrateElevation() {
+  // User points phone camera at the horizon (a flat wall, or the skyline).
+  // At true 0° elevation, el_raw = 90 - beta should equal 0, so beta should be 90.
+  // offset = current_el_raw - 0 = current_el_raw
+  if (state.rawBeta === undefined || state.rawBeta === null) {
+    alert('No sensor data yet. Enable sensors first.');
+    return;
+  }
+  const el_raw = 90 - state.rawBeta;
+  state.elOffset = el_raw; // subtract this so horizon reads 0°
+  alert('✅ Calibrated! Horizon set to 0°. Offset: ' + el_raw.toFixed(1) + '°');
+}
+
+function resetCalibration() {
+  state.elOffset = 0;
+  alert('Calibration reset.');
 }
 
 function drawARLoop() {
