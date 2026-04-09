@@ -278,6 +278,7 @@
     inset: 0;
     width: 100%;
     height: 100%;
+    pointer-events: none;
   }
   .ar-no-support {
     position: absolute;
@@ -291,100 +292,97 @@
     padding: 32px;
     text-align: center;
   }
-  /* Top bar inside AR */
+  /* Top bar */
   .ar-topbar {
     position: absolute;
     top: 0; left: 0; right: 0;
-    z-index: 10;
+    z-index: 20;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 16px;
-    background: linear-gradient(to bottom, rgba(0,0,0,0.75) 0%, transparent 100%);
+    padding: 10px 14px;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, transparent 100%);
     pointer-events: none;
   }
   .ar-topbar-btn {
     pointer-events: all;
-    background: rgba(0,0,0,0.5);
-    border: 1px solid rgba(255,255,255,0.15);
+    background: rgba(0,0,0,0.6);
+    border: 1px solid rgba(255,255,255,0.2);
     color: #fff;
     border-radius: 8px;
-    padding: 8px 14px;
+    padding: 8px 16px;
     font-family: 'Rajdhani', sans-serif;
     font-weight: 700;
-    font-size: 13px;
+    font-size: 14px;
     letter-spacing: 1px;
     cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
   }
   .ar-sat-label {
     font-family: 'Rajdhani', sans-serif;
     font-weight: 700;
-    font-size: 16px;
-    color: var(--accent);
+    font-size: 17px;
+    color: #00d4ff;
     letter-spacing: 2px;
-    text-shadow: 0 0 12px rgba(0,212,255,0.8);
+    text-shadow: 0 0 12px rgba(0,212,255,0.9);
   }
-  /* Big delta numbers */
-  .ar-delta-overlay {
+  /* Left side delta strip */
+  #arDeltaStrip {
     position: absolute;
+    left: 14px;
     top: 50%;
-    left: 0; right: 0;
-    transform: translateY(-140px);
-    z-index: 10;
-    display: flex;
-    justify-content: space-around;
-    pointer-events: none;
-    padding: 0 20px;
-  }
-  .ar-delta-box {
-    background: rgba(0,0,0,0.55);
-    backdrop-filter: blur(6px);
-    border-radius: 12px;
-    padding: 10px 18px;
-    text-align: center;
+    transform: translateY(-50%);
+    z-index: 20;
+    background: rgba(0,0,0,0.65);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 14px;
+    padding: 14px 16px;
     min-width: 110px;
+    pointer-events: none;
   }
-  .ar-delta-label {
+  .ar-strip-block { text-align: center; }
+  .ar-strip-label {
     font-family: 'Rajdhani', sans-serif;
-    font-size: 11px;
+    font-size: 10px;
     letter-spacing: 2px;
+    color: rgba(255,255,255,0.45);
     text-transform: uppercase;
-    color: rgba(255,255,255,0.5);
-    margin-bottom: 2px;
+    margin-bottom: 4px;
   }
-  .ar-delta-value {
+  .ar-strip-value {
     font-family: 'Share Tech Mono', monospace;
-    font-size: 36px;
+    font-size: 38px;
     font-weight: 700;
     line-height: 1;
   }
-  .ar-delta-unit {
+  .ar-strip-unit {
+    font-family: 'Rajdhani', sans-serif;
     font-size: 12px;
-    color: rgba(255,255,255,0.4);
+    font-weight: 600;
+    letter-spacing: 1px;
     margin-top: 2px;
   }
-  /* Direction arrows */
-  .ar-arrow-layer {
-    position: absolute;
-    inset: 0;
-    z-index: 9;
-    pointer-events: none;
+  .ar-strip-divider {
+    height: 1px;
+    background: rgba(255,255,255,0.1);
+    margin: 12px 0;
   }
   /* Bottom HUD */
   .ar-hud {
     position: absolute;
     bottom: 0; left: 0; right: 0;
-    z-index: 10;
+    z-index: 20;
     background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%);
-    padding: 20px 16px 24px;
+    padding: 16px 16px 20px;
     display: grid;
     grid-template-columns: 1fr 1fr 1fr 1fr;
-    gap: 6px;
+    gap: 4px;
     pointer-events: none;
   }
   .ar-stat { text-align: center; }
-  .ar-stat-label { font-size: 9px; color: rgba(255,255,255,0.4); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 2px; }
-  .ar-stat-value { font-family: 'Share Tech Mono', monospace; font-size: 15px; color: var(--accent); }
+  .ar-stat-label { font-size: 9px; color: rgba(255,255,255,0.35); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 3px; }
+  .ar-stat-value { font-family: 'Share Tech Mono', monospace; font-size: 14px; color: #00d4ff; }
 
   /* SKY MAP */
   #skyMapCanvas { display: block; margin: 0 auto; border-radius: 50%; }
@@ -710,14 +708,13 @@
   <!-- ===== AR TAB - FULLSCREEN ===== -->
   <div class="panel" id="panel-ar">
 
-    <!-- No support / start screen -->
+    <!-- Start screen -->
     <div class="ar-no-support" id="arNoSupport">
       <div style="font-size:56px;margin-bottom:16px">📡</div>
-      <div style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:22px;color:var(--text);margin-bottom:8px">AR Pointer View</div>
-      <div style="font-size:13px;margin-bottom:8px;max-width:280px;line-height:1.6">Point your phone at the sky. The crosshair and arrows guide you to the satellite in real time.</div>
-      <div style="font-size:11px;color:var(--warn);margin-bottom:24px;max-width:280px;line-height:1.5">⚠️ Select satellite and set location on ALIGN tab first.</div>
-      <button class="btn btn-primary" style="font-size:16px;padding:14px 32px" onclick="startAR()">▶ Start Camera</button>
-      <button class="btn btn-secondary mt-8" style="font-size:13px" onclick="requestOrientationPermission()">🔑 Enable Sensors Only</button>
+      <div style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:22px;color:var(--text);margin-bottom:8px">Live Pointer</div>
+      <div style="font-size:13px;margin-bottom:8px;max-width:280px;line-height:1.6;color:var(--text-dim)">Uses your phone camera + accelerometer + compass to guide dish alignment.</div>
+      <div style="font-size:11px;color:var(--warn);margin-bottom:24px;max-width:280px;line-height:1.5">⚠️ Set location and select satellite on ALIGN tab first.</div>
+      <button class="btn btn-primary" style="font-size:16px;padding:14px 36px" onclick="startAR()">▶ Start Camera</button>
     </div>
 
     <!-- Active AR view -->
@@ -729,81 +726,50 @@
       <div class="ar-topbar">
         <button class="ar-topbar-btn" onclick="stopAR()">✕ Exit</button>
         <div class="ar-sat-label" id="arSatLabel">--</div>
-        <button class="ar-topbar-btn" onclick="calibrateElevation()" title="Point camera at horizon then tap">📐 Cal</button>
+        <button class="ar-topbar-btn" onclick="arCalibrate()" id="arCalBtn">⊙ Cal</button>
       </div>
 
-      <!-- Big delta numbers -->
-      <div class="ar-delta-overlay">
-        <div class="ar-delta-box">
-          <div class="ar-delta-label">◀ ▶ Azimuth</div>
-          <div class="ar-delta-value" id="arDeltaAz" style="color:var(--accent)">--</div>
-          <div class="ar-delta-unit">degrees off</div>
+      <!-- Delta readouts — left side vertical strip -->
+      <div id="arDeltaStrip">
+        <div class="ar-strip-block">
+          <div class="ar-strip-label">AZIMUTH</div>
+          <div class="ar-strip-value" id="arDeltaAz">--</div>
+          <div class="ar-strip-unit" id="arAzDir">--</div>
         </div>
-        <div class="ar-delta-box">
-          <div class="ar-delta-label">▲ ▼ Elevation</div>
-          <div class="ar-delta-value" id="arDeltaEl" style="color:var(--accent3)">--</div>
-          <div class="ar-delta-unit">degrees off</div>
+        <div class="ar-strip-divider"></div>
+        <div class="ar-strip-block">
+          <div class="ar-strip-label">ELEVATION</div>
+          <div class="ar-strip-value" id="arDeltaEl">--</div>
+          <div class="ar-strip-unit" id="arElDir">--</div>
         </div>
       </div>
 
-      <!-- Bottom HUD -->
+      <!-- Bottom HUD bar -->
       <div class="ar-hud">
         <div class="ar-stat">
           <div class="ar-stat-label">Phone Az</div>
-          <div class="ar-stat-value" id="arPhoneAz">--°</div>
+          <div class="ar-stat-value" id="arPhoneAz">--</div>
         </div>
         <div class="ar-stat">
           <div class="ar-stat-label">Target Az</div>
-          <div class="ar-stat-value" id="arTargetAz">--°</div>
+          <div class="ar-stat-value" id="arTargetAz">--</div>
         </div>
         <div class="ar-stat">
           <div class="ar-stat-label">Phone El</div>
-          <div class="ar-stat-value" id="arPhoneEl">--°</div>
+          <div class="ar-stat-value" id="arPhoneEl">--</div>
         </div>
         <div class="ar-stat">
           <div class="ar-stat-label">Target El</div>
-          <div class="ar-stat-value" id="arTargetEl">--°</div>
+          <div class="ar-stat-value" id="arTargetEl">--</div>
         </div>
       </div>
-    </div>
 
-    <!-- Sensors-only fallback (no camera) -->
-    <div id="arSensorOnly" style="display:none;padding:16px;overflow-y:auto">
-      <div class="card">
-        <div class="card-title">📱 Device Orientation</div>
-        <div class="metrics-grid">
-          <div class="metric">
-            <div class="metric-label">Heading</div>
-            <div class="metric-value" id="devHeading" style="color:var(--accent);font-size:18px">--</div>
-            <div class="metric-unit">degrees</div>
-          </div>
-          <div class="metric">
-            <div class="metric-label">Tilt (El)</div>
-            <div class="metric-value" id="devTilt" style="color:var(--accent3);font-size:18px">--</div>
-            <div class="metric-unit">degrees</div>
-          </div>
-          <div class="metric">
-            <div class="metric-label">Roll</div>
-            <div class="metric-value" id="devRoll" style="color:var(--accent2);font-size:18px">--</div>
-            <div class="metric-unit">degrees</div>
-          </div>
+      <!-- Cal instruction banner (hidden by default) -->
+      <div id="arCalBanner" style="display:none;position:absolute;top:70px;left:0;right:0;text-align:center;z-index:20;pointer-events:none">
+        <div style="display:inline-block;background:rgba(255,204,0,0.9);color:#000;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px;padding:8px 20px;border-radius:20px;letter-spacing:1px">
+          Point camera at HORIZON → tap ⊙ Cal again
         </div>
       </div>
-      <div class="card">
-        <div class="card-title">🎯 Live Delta</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;text-align:center">
-          <div>
-            <div style="font-size:11px;color:var(--text-dim);letter-spacing:1px;margin-bottom:6px">◀ ▶ AZIMUTH OFF</div>
-            <div id="soAzDelta" style="font-family:'Share Tech Mono',monospace;font-size:40px;color:var(--accent)">--</div>
-          </div>
-          <div>
-            <div style="font-size:11px;color:var(--text-dim);letter-spacing:1px;margin-bottom:6px">▲ ▼ ELEVATION OFF</div>
-            <div id="soElDelta" style="font-family:'Share Tech Mono',monospace;font-size:40px;color:var(--accent3)">--</div>
-          </div>
-        </div>
-      </div>
-      <button class="btn btn-primary btn-full mt-8" onclick="startAR()">📷 Start Camera Too</button>
-      <button class="btn btn-secondary btn-full mt-8" onclick="showArStart()">← Back</button>
     </div>
 
   </div>
@@ -1510,292 +1476,308 @@ function checkObstruction() {
 }
 
 // ============================================================
-// AR / ORIENTATION
+// AR / SENSORS — Professional rewrite
+// Uses deviceMotion accelerometer for elevation (stable, no drift)
+// Uses deviceorientation alpha for compass heading with EMA smoothing
 // ============================================================
 let arAnimFrame = null;
+const AR = {
+  // Smoothed sensor values
+  smoothAz: null,     // smoothed compass heading
+  rawEl: null,        // raw elevation from accelerometer
+  smoothEl: null,     // smoothed elevation
+  elOffset: 0,        // calibration offset
+  calStep: 0,         // 0=idle, 1=waiting for horizon tap
+  motionListener: null,
+  orientListener: null,
+  orientAbsListener: null,
+};
+const EMA_AZ = 0.15;  // compass smoothing (lower = smoother but slower)
+const EMA_EL = 0.2;   // elevation smoothing
 
 function showArStart() {
   document.getElementById('arNoSupport').style.display = 'flex';
   document.getElementById('arActive').style.display = 'none';
-  document.getElementById('arSensorOnly').style.display = 'none';
 }
 
 async function startAR() {
+  // Camera
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false });
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
+      audio: false
+    });
     state.arStream = stream;
     const video = document.getElementById('arVideo');
     video.srcObject = stream;
     video.play();
-
-    document.getElementById('arNoSupport').style.display = 'none';
-    document.getElementById('arSensorOnly').style.display = 'none';
-    document.getElementById('arActive').style.display = '';
-
-    // Hide main chrome for true fullscreen
-    document.querySelector('header').style.display = 'none';
-    document.querySelector('.tabs').style.display = 'none';
-    document.querySelector('.status-bar').style.display = 'none';
-
-    // Size canvas to full window
-    const canvas = document.getElementById('arCanvas');
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-
-    document.getElementById('arSatLabel').textContent = state.satName || 'No satellite';
-
-    requestOrientationPermission();
-    if (arAnimFrame) cancelAnimationFrame(arAnimFrame);
-    drawARLoop();
-  } catch (e) {
-    alert('Camera access denied or not available: ' + e.message);
+  } catch(e) {
+    alert('Camera error: ' + e.message + '\n\nMake sure you are on HTTPS (GitHub Pages).');
+    return;
   }
+
+  document.getElementById('arNoSupport').style.display = 'none';
+  document.getElementById('arActive').style.display = '';
+  document.getElementById('arSatLabel').textContent = state.satName || 'No satellite';
+  document.getElementById('arTargetAz').textContent = state.azimuth ? state.azimuth.toFixed(1) + '°' : '--';
+  document.getElementById('arTargetEl').textContent = state.elevation ? state.elevation.toFixed(1) + '°' : '--';
+
+  // Hide chrome
+  document.querySelector('header').style.display = 'none';
+  document.querySelector('.tabs').style.display = 'none';
+  document.querySelector('.status-bar').style.display = 'none';
+
+  // Start sensors
+  await startSensors();
+
+  // Start draw loop
+  const canvas = document.getElementById('arCanvas');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  if (arAnimFrame) cancelAnimationFrame(arAnimFrame);
+  drawARLoop();
+}
+
+async function startSensors() {
+  // iOS requires permission for both
+  if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+    try { await DeviceMotionEvent.requestPermission(); } catch(e) {}
+  }
+  if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+    try { await DeviceOrientationEvent.requestPermission(); } catch(e) {}
+  }
+
+  // --- ELEVATION via deviceMotion accelerometer ---
+  // accelerationIncludingGravity gives gravity vector — much more stable than beta.
+  // When phone held portrait, camera away:
+  //   x=0, y=-9.8, z=0  → flat face-up  → camera at sky → el=90°
+  //   x=0, y=0,   z=9.8 → upright        → camera at horizon → el=0°
+  //   x=0, y=9.8, z=0   → flat face-down → camera at ground → el=-90°
+  // el = atan2(-z, -y) converted appropriately
+  AR.motionListener = (e) => {
+    const g = e.accelerationIncludingGravity;
+    if (!g || g.x === null) return;
+    const gx = g.x || 0, gy = g.y || 0, gz = g.z || 0;
+    // Elevation of camera = angle of -Z axis relative to horizontal plane
+    // = atan2(-gz, sqrt(gx²+gy²)) but sign depends on orientation
+    // For portrait phone, camera pointing away from screen:
+    // gravity: y is -9.8 when face-up (camera to sky), z is +9.8 when upright (camera to horizon)
+    const horiz = Math.sqrt(gx * gx + gy * gy);
+    const raw = Math.atan2(-gz, horiz) * 180 / Math.PI;
+    // Apply calibration offset
+    const calibrated = raw - AR.elOffset;
+    // EMA smooth
+    if (AR.smoothEl === null) AR.smoothEl = calibrated;
+    else AR.smoothEl = EMA_EL * calibrated + (1 - EMA_EL) * AR.smoothEl;
+    AR.rawEl = raw;
+    state.tilt = AR.smoothEl;
+  };
+
+  // --- AZIMUTH via deviceorientation ---
+  AR.orientAbsListener = (e) => {
+    let h = null;
+    if (e.webkitCompassHeading !== undefined && e.webkitCompassHeading !== null) {
+      h = e.webkitCompassHeading; // iOS — already true heading
+    } else if (e.absolute && e.alpha !== null) {
+      h = (360 - e.alpha) % 360; // Android absolute — convert to compass
+    } else if (e.alpha !== null) {
+      h = (360 - e.alpha) % 360; // fallback
+    }
+    if (h === null) return;
+    // EMA smooth — handle wrap-around at 0/360
+    if (AR.smoothAz === null) {
+      AR.smoothAz = h;
+    } else {
+      let diff = h - AR.smoothAz;
+      if (diff > 180) diff -= 360;
+      if (diff < -180) diff += 360;
+      AR.smoothAz = (AR.smoothAz + EMA_AZ * diff + 360) % 360;
+    }
+    state.heading = AR.smoothAz;
+  };
+
+  window.addEventListener('devicemotion', AR.motionListener, true);
+  window.addEventListener('deviceorientationabsolute', AR.orientAbsListener, true);
+  window.addEventListener('deviceorientation', AR.orientAbsListener, true);
+  setStatus('sensor', 'ok', 'Sensors active');
+}
+
+function stopSensors() {
+  if (AR.motionListener) window.removeEventListener('devicemotion', AR.motionListener, true);
+  if (AR.orientAbsListener) {
+    window.removeEventListener('deviceorientationabsolute', AR.orientAbsListener, true);
+    window.removeEventListener('deviceorientation', AR.orientAbsListener, true);
+  }
+  AR.smoothAz = null; AR.smoothEl = null; AR.rawEl = null;
+  setStatus('sensor', 'warn', 'Sensors off');
 }
 
 function stopAR() {
-  if (state.arStream) {
-    state.arStream.getTracks().forEach(t => t.stop());
-    state.arStream = null;
-  }
+  if (state.arStream) { state.arStream.getTracks().forEach(t => t.stop()); state.arStream = null; }
   if (arAnimFrame) { cancelAnimationFrame(arAnimFrame); arAnimFrame = null; }
+  stopSensors();
   document.getElementById('arActive').style.display = 'none';
   document.getElementById('arNoSupport').style.display = 'flex';
-  // Restore chrome
   document.querySelector('header').style.display = '';
   document.querySelector('.tabs').style.display = '';
   document.querySelector('.status-bar').style.display = '';
   switchTab('align');
 }
 
-function startARSensors() {
-  requestOrientationPermission();
-}
-
-async function requestOrientationPermission() {
-  if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-    try {
-      const perm = await DeviceOrientationEvent.requestPermission();
-      if (perm === 'granted') listenOrientation();
-      else { setStatus('sensor', 'err', 'Denied'); }
-    } catch (e) { listenOrientation(); }
+// Calibration: two-tap flow
+// Tap 1 → show banner "point at horizon"
+// Tap 2 → capture offset
+function arCalibrate() {
+  if (AR.calStep === 0) {
+    AR.calStep = 1;
+    document.getElementById('arCalBanner').style.display = '';
+    document.getElementById('arCalBtn').textContent = '✓ Set';
+    document.getElementById('arCalBtn').style.background = 'rgba(255,204,0,0.8)';
+    document.getElementById('arCalBtn').style.color = '#000';
   } else {
-    listenOrientation();
+    // Capture: at horizon, real elevation = 0, so offset = rawEl
+    if (AR.rawEl === null) { AR.calStep = 0; return; }
+    AR.elOffset = AR.rawEl;
+    AR.smoothEl = null; // reset smooth so it picks up immediately
+    AR.calStep = 0;
+    document.getElementById('arCalBanner').style.display = 'none';
+    document.getElementById('arCalBtn').textContent = '⊙ Cal';
+    document.getElementById('arCalBtn').style.background = '';
+    document.getElementById('arCalBtn').style.color = '';
   }
 }
 
-function listenOrientation() {
-  window.removeEventListener('deviceorientationabsolute', handleOrientation, true);
-  window.removeEventListener('deviceorientation', handleOrientation, true);
-  window.addEventListener('deviceorientationabsolute', handleOrientation, true);
-  window.addEventListener('deviceorientation', handleOrientation, true);
-  setStatus('sensor', 'ok', 'Sensors active');
-}
+// Compatibility shim — keep old name working
+async function requestOrientationPermission() { await startSensors(); }
+function startARSensors() {}
 
-function handleOrientation(e) {
-  let heading = e.alpha;
-  let beta  = e.beta;   // -180 to 180: 0=flat, 90=upright portrait, -90=upside down
-  let gamma = e.gamma;  // -90 to 90:   0=no roll, ±90=landscape
-
-  if (e.webkitCompassHeading !== undefined) heading = e.webkitCompassHeading;
-
-  if (heading !== null) {
-    state.heading = heading;
-    const hEl = document.getElementById('devHeading');
-    if (hEl) hEl.textContent = heading.toFixed(0) + '°';
-    const arPhAz = document.getElementById('arPhoneAz');
-    if (arPhAz) arPhAz.textContent = heading.toFixed(0) + '°';
-
-    if (state.azimuth !== null) {
-      let delta = ((state.azimuth - heading + 540) % 360) - 180;
-      const arDeltaAz = document.getElementById('arDeltaAz');
-      const soAzDelta = document.getElementById('soAzDelta');
-      const color = Math.abs(delta) < 5 ? '#00ff88' : Math.abs(delta) < 15 ? '#ffcc00' : '#ff3355';
-      const txt = (delta >= 0 ? '+' : '') + delta.toFixed(0) + '°';
-      if (arDeltaAz) { arDeltaAz.textContent = txt; arDeltaAz.style.color = color; }
-      if (soAzDelta) { soAzDelta.textContent = txt; soAzDelta.style.color = color; }
-    }
-  }
-
-  if (beta !== null && gamma !== null) {
-    // Convert beta/gamma to camera-pointing elevation.
-    // When holding phone portrait with camera pointing away from you:
-    //   beta=90  → phone upright, camera pointing at horizon (0° elevation)
-    //   beta=0   → phone flat face-up, camera pointing at sky (90° elevation)
-    //   beta=180 → phone flat face-down, camera pointing at ground (-90°)
-    // gamma shifts this when phone is tilted sideways (landscape).
-    // We compute the actual elevation of the camera direction using vector math.
-    const bRad = beta  * Math.PI / 180;
-    const gRad = gamma * Math.PI / 180;
-    // Camera direction vector in device frame (camera on back, pointing away):
-    // In portrait: camera points in -Y of screen plane = (sin(b), -cos(b)*sin(g), cos(b)*cos(g))
-    // Elevation = angle above horizontal = arcsin of vertical component
-    const vert = Math.sin(bRad) * Math.cos(gRad);  // 1=sky, -1=ground at beta=90 adjusted
-    // Remap: beta=0 flat face-up→sky(90°), beta=90 upright→horizon(0°), beta=180 face-down→ground(-90°)
-    // vert above gives sin(elevation). But we need to correct for portrait upright reference.
-    // Simpler direct formula proven for portrait camera-away mode:
-    const el_raw = 90 - beta; // beta=90 → el=0 (horizon), beta=0 → el=90 (sky)
-    // Apply calibration offset
-    const el = el_raw - (state.elOffset || 0);
-
-    state.tilt = el;
-    state.rawBeta = beta;
-
-    const dtEl = document.getElementById('devTilt');
-    if (dtEl) dtEl.textContent = el.toFixed(0) + '°';
-    const arPhEl = document.getElementById('arPhoneEl');
-    if (arPhEl) arPhEl.textContent = el.toFixed(0) + '°';
-
-    if (state.elevation !== null) {
-      let delta = state.elevation - el;
-      const arDeltaEl = document.getElementById('arDeltaEl');
-      const soElDelta = document.getElementById('soElDelta');
-      const color = Math.abs(delta) < 3 ? '#00ff88' : Math.abs(delta) < 10 ? '#ffcc00' : '#ff3355';
-      const txt = (delta >= 0 ? '+' : '') + delta.toFixed(0) + '°';
-      if (arDeltaEl) { arDeltaEl.textContent = txt; arDeltaEl.style.color = color; }
-      if (soElDelta) { soElDelta.textContent = txt; soElDelta.style.color = color; }
-    }
-  }
-
-  if (gamma !== null) {
-    state.roll = gamma;
-    const drEl = document.getElementById('devRoll');
-    if (drEl) drEl.textContent = gamma.toFixed(0) + '°';
-  }
-}
-
-function calibrateElevation() {
-  // User points phone camera at the horizon (a flat wall, or the skyline).
-  // At true 0° elevation, el_raw = 90 - beta should equal 0, so beta should be 90.
-  // offset = current_el_raw - 0 = current_el_raw
-  if (state.rawBeta === undefined || state.rawBeta === null) {
-    alert('No sensor data yet. Enable sensors first.');
-    return;
-  }
-  const el_raw = 90 - state.rawBeta;
-  state.elOffset = el_raw; // subtract this so horizon reads 0°
-  alert('✅ Calibrated! Horizon set to 0°. Offset: ' + el_raw.toFixed(1) + '°');
-}
-
-function resetCalibration() {
-  state.elOffset = 0;
-  alert('Calibration reset.');
-}
-
+// ============================================================
+// AR DRAW LOOP
+// ============================================================
 function drawARLoop() {
   const canvas = document.getElementById('arCanvas');
   if (!canvas || document.getElementById('arActive').style.display === 'none') return;
 
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
-
   const ctx = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
   ctx.clearRect(0, 0, W, H);
   const cx = W / 2, cy = H / 2;
 
-  const hasSat = state.azimuth !== null;
-  const hasSensor = state.heading !== null;
+  const hasSat = state.azimuth !== null && state.elevation !== null;
+  const hasAz  = state.heading !== null;
+  const hasEl  = state.tilt !== null;
 
-  let deltaAz = hasSat && hasSensor ? ((state.azimuth - state.heading + 540) % 360) - 180 : null;
-  let deltaEl = hasSat && state.tilt !== null ? state.elevation - state.tilt : null;
+  // Compute deltas
+  let dAz = null, dEl = null;
+  if (hasSat && hasAz) dAz = ((state.azimuth - state.heading + 540) % 360) - 180;
+  if (hasSat && hasEl) dEl = state.elevation - state.tilt;
 
-  const locked = deltaAz !== null && deltaEl !== null && Math.abs(deltaAz) < 5 && Math.abs(deltaEl) < 3;
+  const locked = dAz !== null && dEl !== null && Math.abs(dAz) < 4 && Math.abs(dEl) < 2;
+
+  // Update HUD text
+  if (hasAz) document.getElementById('arPhoneAz').textContent = state.heading.toFixed(1) + '°';
+  if (hasEl) document.getElementById('arPhoneEl').textContent = state.tilt.toFixed(1) + '°';
+
+  // Update delta strip
+  const azValEl = document.getElementById('arDeltaAz');
+  const azDirEl = document.getElementById('arAzDir');
+  const elValEl = document.getElementById('arDeltaEl');
+  const elDirEl = document.getElementById('arElDir');
+
+  if (dAz !== null) {
+    const absAz = Math.abs(dAz);
+    const azColor = absAz < 4 ? '#00ff88' : absAz < 12 ? '#ffcc00' : '#ff3355';
+    azValEl.textContent = absAz.toFixed(0) + '°';
+    azValEl.style.color = azColor;
+    azDirEl.textContent = absAz < 4 ? '✓ ON TARGET' : dAz > 0 ? '▶ TURN RIGHT' : '◀ TURN LEFT';
+    azDirEl.style.color = azColor;
+  } else {
+    azValEl.textContent = '--'; azDirEl.textContent = 'No compass';
+    azValEl.style.color = '#6a8aaa'; azDirEl.style.color = '#6a8aaa';
+  }
+
+  if (dEl !== null) {
+    const absEl = Math.abs(dEl);
+    const elColor = absEl < 2 ? '#00ff88' : absEl < 8 ? '#ffcc00' : '#ff3355';
+    elValEl.textContent = absEl.toFixed(0) + '°';
+    elValEl.style.color = elColor;
+    elDirEl.textContent = absEl < 2 ? '✓ ON TARGET' : dEl > 0 ? '▲ TILT UP' : '▼ TILT DOWN';
+    elDirEl.style.color = elColor;
+  } else {
+    elValEl.textContent = '--'; elDirEl.textContent = 'No motion';
+    elValEl.style.color = '#6a8aaa'; elDirEl.style.color = '#6a8aaa';
+  }
 
   // ---- CROSSHAIR ----
   const crossColor = locked ? '#00ff88' : '#00d4ff';
-  const crossSize = 50;
-  const armLen = 24;
-  ctx.shadowBlur = 18; ctx.shadowColor = crossColor;
+  const S = Math.min(W, H) * 0.12; // crosshair size scales with screen
+  const arm = S * 0.48;
+
+  ctx.shadowBlur = 20; ctx.shadowColor = crossColor;
   ctx.strokeStyle = crossColor; ctx.lineWidth = 2.5;
 
-  // Four corner brackets
   [[-1,-1],[1,-1],[1,1],[-1,1]].forEach(([sx, sy]) => {
-    const bx = cx + sx * crossSize;
-    const by = cy + sy * crossSize;
     ctx.beginPath();
-    ctx.moveTo(bx, by + sy * armLen);
-    ctx.lineTo(bx, by);
-    ctx.lineTo(bx + sx * armLen, by);
+    ctx.moveTo(cx + sx * S, cy + sy * S - sy * arm);
+    ctx.lineTo(cx + sx * S, cy + sy * S);
+    ctx.lineTo(cx + sx * S - sx * arm, cy + sy * S);
     ctx.stroke();
   });
-
-  // Center dot
-  ctx.beginPath(); ctx.arc(cx, cy, 4, 0, Math.PI * 2);
-  ctx.fillStyle = crossColor; ctx.fill();
-
-  // Center cross lines (short)
+  // Center cross
+  const cc = S * 0.22;
   ctx.beginPath();
-  ctx.moveTo(cx - 12, cy); ctx.lineTo(cx + 12, cy);
-  ctx.moveTo(cx, cy - 12); ctx.lineTo(cx, cy + 12);
+  ctx.moveTo(cx - cc, cy); ctx.lineTo(cx + cc, cy);
+  ctx.moveTo(cx, cy - cc); ctx.lineTo(cx, cy + cc);
   ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx, cy, 3.5, 0, Math.PI*2);
+  ctx.fillStyle = crossColor; ctx.fill();
   ctx.shadowBlur = 0;
 
   // ---- LOCKED RING ----
   if (locked) {
-    ctx.beginPath(); ctx.arc(cx, cy, crossSize + 10, 0, Math.PI * 2);
+    ctx.beginPath(); ctx.arc(cx, cy, S * 1.3, 0, Math.PI * 2);
     ctx.strokeStyle = '#00ff88'; ctx.lineWidth = 3;
-    ctx.shadowBlur = 24; ctx.shadowColor = '#00ff88';
+    ctx.shadowBlur = 28; ctx.shadowColor = '#00ff88';
     ctx.stroke(); ctx.shadowBlur = 0;
-
-    ctx.font = 'bold 18px Rajdhani, sans-serif';
+    ctx.font = `bold ${Math.round(S*0.38)}px Rajdhani, sans-serif`;
     ctx.fillStyle = '#00ff88'; ctx.textAlign = 'center';
-    ctx.fillText('✓ LOCKED ON', cx, cy + crossSize + 32);
+    ctx.fillText('✓ LOCKED ON', cx, cy + S * 1.7);
   }
 
   // ---- DIRECTION ARROWS ----
-  if (deltaAz !== null && !locked) {
-    const arrowPad = 60;
-    const arrowSize = 22;
-
-    // LEFT arrow
-    if (deltaAz < -5) {
-      const intensity = Math.min(1, Math.abs(deltaAz) / 30);
-      drawArrow(ctx, arrowPad, cy, 'left', intensity);
+  if (!locked) {
+    const pad = Math.min(W, H) * 0.1;
+    if (dAz !== null) {
+      if (dAz > 4)  drawARArrow(ctx, W - pad, cy, 'right', Math.min(1, Math.abs(dAz)/30));
+      if (dAz < -4) drawARArrow(ctx, pad,     cy, 'left',  Math.min(1, Math.abs(dAz)/30));
     }
-    // RIGHT arrow
-    if (deltaAz > 5) {
-      const intensity = Math.min(1, Math.abs(deltaAz) / 30);
-      drawArrow(ctx, W - arrowPad, cy, 'right', intensity);
-    }
-    // UP arrow (elevation too low — need to tilt up)
-    if (deltaEl !== null && deltaEl > 3) {
-      const intensity = Math.min(1, Math.abs(deltaEl) / 20);
-      drawArrow(ctx, cx, arrowPad, 'up', intensity);
-    }
-    // DOWN arrow (elevation too high)
-    if (deltaEl !== null && deltaEl < -3) {
-      const intensity = Math.min(1, Math.abs(deltaEl) / 20);
-      drawArrow(ctx, cx, H - arrowPad, 'down', intensity);
+    if (dEl !== null) {
+      if (dEl > 2)  drawARArrow(ctx, cx, pad,     'up',   Math.min(1, Math.abs(dEl)/20));
+      if (dEl < -2) drawARArrow(ctx, cx, H - pad, 'down', Math.min(1, Math.abs(dEl)/20));
     }
   }
-
-  // ---- HORIZON LINE ----
-  ctx.beginPath();
-  ctx.moveTo(cx - 80, cy); ctx.lineTo(cx - crossSize - 10, cy);
-  ctx.moveTo(cx + crossSize + 10, cy); ctx.lineTo(cx + 80, cy);
-  ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 1; ctx.stroke();
 
   arAnimFrame = requestAnimationFrame(drawARLoop);
 }
 
-function drawArrow(ctx, x, y, dir, intensity) {
-  const size = 28 + intensity * 14;
-  const alpha = 0.5 + intensity * 0.5;
-  const color = intensity > 0.6 ? `rgba(255,51,85,${alpha})` : `rgba(255,204,0,${alpha})`;
-
+function drawARArrow(ctx, x, y, dir, intensity) {
+  const sz = 26 + intensity * 16;
+  const alpha = 0.55 + intensity * 0.45;
+  const col = intensity > 0.55 ? `rgba(255,60,80,${alpha})` : `rgba(255,204,0,${alpha})`;
   ctx.save();
   ctx.translate(x, y);
-  if (dir === 'right') ctx.rotate(0);
-  else if (dir === 'left') ctx.rotate(Math.PI);
-  else if (dir === 'up') ctx.rotate(-Math.PI / 2);
-  else if (dir === 'down') ctx.rotate(Math.PI / 2);
-
-  ctx.shadowBlur = 16; ctx.shadowColor = color;
-  ctx.fillStyle = color;
+  if      (dir === 'right') ctx.rotate(0);
+  else if (dir === 'left')  ctx.rotate(Math.PI);
+  else if (dir === 'up')    ctx.rotate(-Math.PI/2);
+  else if (dir === 'down')  ctx.rotate(Math.PI/2);
+  ctx.shadowBlur = 18; ctx.shadowColor = col;
+  ctx.fillStyle = col;
   ctx.beginPath();
-  ctx.moveTo(size, 0);
-  ctx.lineTo(-size * 0.5, -size * 0.55);
-  ctx.lineTo(-size * 0.5, size * 0.55);
+  ctx.moveTo(sz, 0);
+  ctx.lineTo(-sz * 0.5, -sz * 0.55);
+  ctx.lineTo(-sz * 0.5,  sz * 0.55);
   ctx.closePath();
   ctx.fill();
   ctx.shadowBlur = 0;
