@@ -1485,14 +1485,17 @@ function checkObstruction() {
 // ============================================================
 let arAnimFrame = null;
 const AR = {
-  smoothAz: null,        // EMA-smoothed compass heading (declination-corrected)
-  rawEl: null,           // raw elevation from accelerometer
-  smoothEl: null,        // EMA-smoothed elevation
-  declination: 0,        // magnetic declination auto-computed from GPS
+  smoothAz: null,
+  rawEl: null,
+  smoothEl: null,
+  declination: 0,
+  absoluteFired: false,   // true once deviceorientationabsolute fires — suppresses fallback
   motionListener: null,
   orientAbsListener: null,
+  orientFallbackListener: null,
+  applyHeadingEMAFn: null,
 };
-const EMA_AZ = 0.12;
+const EMA_AZ = 0.07;   // slower = more stable for Samsung (was 0.12)
 const EMA_EL = 0.18;
 
 function showArStart() {
@@ -1578,24 +1581,10 @@ async function startSensors() {
     state.roll = Math.atan2(gx, -gy) * 180 / Math.PI;
   };
 
-  // --- AZIMUTH via deviceorientation with auto declination correction ---
-  AR.orientAbsListener = (e) => {
-    let h = null;
-    if (e.webkitCompassHeading !== undefined && e.webkitCompassHeading !== null) {
-      // iOS: webkitCompassHeading is magnetic — add declination for true north
-      h = (e.webkitCompassHeading + AR.declination + 360) % 360;
-    } else if (e.absolute && e.alpha !== null) {
-      // Android absolute=true: OS already gives true north
-      h = (360 - e.alpha) % 360;
-    } else if (e.alpha !== null) {
-      // Android fallback: magnetic, apply declination
-      h = ((360 - e.alpha) + AR.declination + 360) % 360;
-    }
-    if (h === null) return;
-    updateCompassQuality(h);
-    if (AR.smoothAz === null) {
-      AR.smoothAz = h;
-    } else {
+  // Shared EMA function used by both listeners
+  AR.applyHeadingEMAFn = (h) => {
+    if (AR.smoothAz === null) { AR.smoothAz = h; }
+    else {
       let diff = h - AR.smoothAz;
       if (diff > 180) diff -= 360;
       if (diff < -180) diff += 360;
@@ -1604,18 +1593,50 @@ async function startSensors() {
     state.heading = AR.smoothAz;
   };
 
+  // --- AZIMUTH via deviceorientationabsolute (preferred on Android) ---
+  AR.orientAbsListener = (e) => {
+    AR.absoluteFired = true; // signal fallback to stop
+    let h = null;
+    if (e.webkitCompassHeading !== undefined && e.webkitCompassHeading !== null) {
+      h = (e.webkitCompassHeading + AR.declination + 360) % 360;
+    } else if (e.alpha !== null) {
+      // deviceorientationabsolute on Android: alpha=0 is true north, increases CW
+      h = (360 - e.alpha + 360) % 360;
+    }
+    if (h === null) return;
+    updateCompassQuality(h);
+    AR.applyHeadingEMAFn(h);
+  };
+
+  // Samsung/Android: prefer absolute event (uses OS sensor fusion, more stable)
+  // Plain deviceorientation on Chrome/Samsung is unreliable — use separate handler
+  AR.orientFallbackListener = (e) => {
+    // Only use if absolute event never fired
+    if (AR.absoluteFired) return;
+    let h = null;
+    if (e.webkitCompassHeading !== undefined && e.webkitCompassHeading !== null) {
+      h = (e.webkitCompassHeading + AR.declination + 360) % 360;
+    } else if (e.alpha !== null) {
+      h = ((360 - e.alpha) + AR.declination + 360) % 360;
+    }
+    if (h === null) return;
+    updateCompassQuality(h);
+    applyHeadingEMA(h);
+  };
   window.addEventListener('devicemotion', AR.motionListener, true);
   window.addEventListener('deviceorientationabsolute', AR.orientAbsListener, true);
-  window.addEventListener('deviceorientation', AR.orientAbsListener, true);
+  window.addEventListener('deviceorientation', AR.orientFallbackListener, true);
   setStatus('sensor', 'ok', 'Sensors active');
+}
+
+function applyHeadingEMA(h) {
+  if (AR.applyHeadingEMAFn) AR.applyHeadingEMAFn(h);
 }
 
 function stopSensors() {
   if (AR.motionListener) window.removeEventListener('devicemotion', AR.motionListener, true);
-  if (AR.orientAbsListener) {
-    window.removeEventListener('deviceorientationabsolute', AR.orientAbsListener, true);
-    window.removeEventListener('deviceorientation', AR.orientAbsListener, true);
-  }
+  if (AR.orientAbsListener) window.removeEventListener('deviceorientationabsolute', AR.orientAbsListener, true);
+  if (AR.orientFallbackListener) window.removeEventListener('deviceorientation', AR.orientFallbackListener, true);
   AR.smoothAz = null; AR.smoothEl = null; AR.rawEl = null;
   // Note: do not update status bar here — called only on full app teardown
 }
@@ -1828,83 +1849,84 @@ function drawARLoop() {
 // CARDINAL COMPASS BAR
 // ============================================================
 function drawCardinalBar(ctx, W, H, heading, targetAz) {
-  const barY = 58;
-  const barH = 36;
-  const degsVisible = 90; // how many degrees of compass visible across width
+  // Position below the topbar (which is ~56px tall on Samsung)
+  const barY = 62;
+  const barH = 48;
+  const degsVisible = 70; // narrower = labels more spread out = more readable
   const pxPerDeg = W / degsVisible;
-
-  // Background strip
-  ctx.fillStyle = 'rgba(0,0,0,0.55)';
-  ctx.fillRect(0, barY, W, barH);
-  // Border
-  ctx.fillStyle = 'rgba(255,255,255,0.06)';
-  ctx.fillRect(0, barY, W, 1);
-  ctx.fillRect(0, barY + barH - 1, W, 1);
-
   const cx = W / 2;
 
-  // Draw ticks for ±(degsVisible/2) around heading
+  // Background
+  ctx.fillStyle = 'rgba(0,0,0,0.72)';
+  ctx.fillRect(0, barY, W, barH);
+  ctx.fillStyle = 'rgba(255,255,255,0.08)';
+  ctx.fillRect(0, barY + barH - 1, W, 1);
+
   ctx.save();
   ctx.beginPath(); ctx.rect(0, barY, W, barH); ctx.clip();
 
-  for (let d = -60; d <= 60; d++) {
-    const deg = ((heading + d) % 360 + 360) % 360;
+  // Ticks and labels
+  for (let d = -50; d <= 50; d++) {
+    const deg = ((Math.round(heading) + d) % 360 + 360) % 360;
     const x = cx + d * pxPerDeg;
+    if (x < -20 || x > W + 20) continue;
     const isMajor = deg % 45 === 0;
-    const is15 = deg % 15 === 0;
+    const is15   = deg % 15 === 0;
     if (!is15 && !isMajor) continue;
-    const tickH = isMajor ? 14 : 7;
+    const tickH = isMajor ? 18 : 8;
     ctx.beginPath();
     ctx.moveTo(x, barY + barH - tickH);
     ctx.lineTo(x, barY + barH);
-    ctx.strokeStyle = isMajor ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.25)';
+    ctx.strokeStyle = isMajor ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.2)';
     ctx.lineWidth = isMajor ? 2 : 1;
     ctx.stroke();
-
     if (isMajor) {
       const label = ['N','NE','E','SE','S','SW','W','NW'][deg/45];
-      ctx.font = `bold 11px Rajdhani, sans-serif`;
-      ctx.fillStyle = label === 'N' ? '#ff4466' : label === 'S' ? '#ffcc00' : 'rgba(255,255,255,0.7)';
+      ctx.font = 'bold 16px Rajdhani, sans-serif';
+      ctx.fillStyle = label === 'N' ? '#ff4466'
+                    : label === 'S' ? '#ffcc00'
+                    : 'rgba(255,255,255,0.85)';
       ctx.textAlign = 'center';
-      ctx.fillText(label, x, barY + 14);
+      ctx.shadowBlur = label === 'N' ? 8 : 0;
+      ctx.shadowColor = '#ff4466';
+      ctx.fillText(label, x, barY + 20);
+      ctx.shadowBlur = 0;
     }
   }
 
-  // Target satellite marker on compass bar
+  // SAT triangle marker
   const satOffset = ((targetAz - heading + 540) % 360) - 180;
   const satX = cx + satOffset * pxPerDeg;
-  if (satX > -10 && satX < W + 10) {
-    ctx.shadowBlur = 10; ctx.shadowColor = '#00d4ff';
+  if (satX > -20 && satX < W + 20) {
+    ctx.shadowBlur = 14; ctx.shadowColor = '#00d4ff';
     ctx.fillStyle = '#00d4ff';
-    // Triangle pointer
     ctx.beginPath();
-    ctx.moveTo(satX, barY + barH - 2);
-    ctx.lineTo(satX - 7, barY + barH - 14);
-    ctx.lineTo(satX + 7, barY + barH - 14);
+    ctx.moveTo(satX, barY + barH - 1);
+    ctx.lineTo(satX - 9, barY + barH - 20);
+    ctx.lineTo(satX + 9, barY + barH - 20);
     ctx.closePath(); ctx.fill();
     ctx.shadowBlur = 0;
-    // Label
-    ctx.font = 'bold 9px Rajdhani, sans-serif';
+    ctx.font = 'bold 11px Rajdhani, sans-serif';
     ctx.fillStyle = '#00d4ff';
     ctx.textAlign = 'center';
-    ctx.fillText('SAT', satX, barY + 10);
+    ctx.fillText('SAT', satX, barY + 13);
   }
 
   ctx.restore();
 
-  // Center heading readout
-  ctx.font = 'bold 13px Share Tech Mono, monospace';
-  ctx.fillStyle = '#fff';
+  // Heading readout above bar
+  ctx.font = 'bold 14px Share Tech Mono, monospace';
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
   ctx.textAlign = 'center';
-  ctx.fillText(Math.round(heading) + '°', cx, barY - 4);
+  ctx.fillText(Math.round(heading) + '°', cx, barY - 5);
 
-  // Center tick mark
+  // Center pointer triangle (pointing down into bar)
+  ctx.fillStyle = '#fff';
   ctx.beginPath();
-  ctx.moveTo(cx, barY);
-  ctx.lineTo(cx, barY + barH);
-  ctx.strokeStyle = 'rgba(255,255,255,0.9)';
-  ctx.lineWidth = 2;
-  ctx.stroke();
+  ctx.moveTo(cx - 7, barY);
+  ctx.lineTo(cx + 7, barY);
+  ctx.lineTo(cx, barY + 10);
+  ctx.closePath(); ctx.fill();
 }
 
 // ============================================================
