@@ -726,7 +726,10 @@
       <div class="ar-topbar">
         <button class="ar-topbar-btn" onclick="stopAR()">✕ Exit</button>
         <div class="ar-sat-label" id="arSatLabel">--</div>
-        <button class="ar-topbar-btn" onclick="arCalibrate()" id="arCalBtn">⊙ Cal</button>
+        <div id="arCompassQuality" style="background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:5px 10px;text-align:center;min-width:58px">
+          <div style="font-size:9px;color:rgba(255,255,255,0.4);letter-spacing:1px;font-family:'Rajdhani',sans-serif;margin-bottom:2px">COMPASS</div>
+          <div id="arCompassDots" style="font-size:13px;letter-spacing:2px;color:#6a8aaa">···</div>
+        </div>
       </div>
 
       <!-- Delta readouts — left side vertical strip -->
@@ -764,10 +767,10 @@
         </div>
       </div>
 
-      <!-- Cal instruction banner (hidden by default) -->
-      <div id="arCalBanner" style="display:none;position:absolute;top:70px;left:0;right:0;text-align:center;z-index:20;pointer-events:none">
-        <div style="display:inline-block;background:rgba(255,204,0,0.9);color:#000;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px;padding:8px 20px;border-radius:20px;letter-spacing:1px">
-          Point camera at HORIZON → tap ⊙ Cal again
+      <!-- Figure-8 banner -->
+      <div id="arFig8Banner" style="display:none;position:absolute;top:68px;left:0;right:0;text-align:center;z-index:20;pointer-events:none">
+        <div style="display:inline-block;background:rgba(255,60,80,0.92);color:#fff;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:13px;padding:8px 18px;border-radius:20px;letter-spacing:1px">
+          ⚠️ Compass unstable — wave phone in ∞ figure-8 motion
         </div>
       </div>
     </div>
@@ -1482,18 +1485,15 @@ function checkObstruction() {
 // ============================================================
 let arAnimFrame = null;
 const AR = {
-  // Smoothed sensor values
-  smoothAz: null,     // smoothed compass heading
-  rawEl: null,        // raw elevation from accelerometer
-  smoothEl: null,     // smoothed elevation
-  elOffset: 0,        // calibration offset
-  calStep: 0,         // 0=idle, 1=waiting for horizon tap
+  smoothAz: null,        // EMA-smoothed compass heading (declination-corrected)
+  rawEl: null,           // raw elevation from accelerometer
+  smoothEl: null,        // EMA-smoothed elevation
+  declination: 0,        // magnetic declination auto-computed from GPS
   motionListener: null,
-  orientListener: null,
   orientAbsListener: null,
 };
-const EMA_AZ = 0.15;  // compass smoothing (lower = smoother but slower)
-const EMA_EL = 0.2;   // elevation smoothing
+const EMA_AZ = 0.12;
+const EMA_EL = 0.18;
 
 function showArStart() {
   document.getElementById('arNoSupport').style.display = 'flex';
@@ -1527,6 +1527,10 @@ async function startAR() {
   document.querySelector('.tabs').style.display = 'none';
   document.querySelector('.status-bar').style.display = 'none';
 
+  // Auto-compute magnetic declination from GPS coordinates
+  if (state.lat !== null && state.lon !== null) {
+    AR.declination = getMagneticDeclination(state.lat, state.lon);
+  }
   // Start sensors
   await startSensors();
 
@@ -1564,27 +1568,31 @@ async function startSensors() {
     // gravity: y is -9.8 when face-up (camera to sky), z is +9.8 when upright (camera to horizon)
     const horiz = Math.sqrt(gx * gx + gy * gy);
     const raw = Math.atan2(-gz, horiz) * 180 / Math.PI;
-    // Apply calibration offset
-    const calibrated = raw - AR.elOffset;
-    // EMA smooth
-    if (AR.smoothEl === null) AR.smoothEl = calibrated;
-    else AR.smoothEl = EMA_EL * calibrated + (1 - EMA_EL) * AR.smoothEl;
+    // EMA smooth — accelerometer is self-referencing, no manual calibration needed
+    if (AR.smoothEl === null) AR.smoothEl = raw;
+    else AR.smoothEl = EMA_EL * raw + (1 - EMA_EL) * AR.smoothEl;
     AR.rawEl = raw;
     state.tilt = AR.smoothEl;
+    // Roll from accelerometer: atan2(gx, -gy)
+    // Portrait upright: gx≈0, gy≈-9.8 → roll≈0. Tilted right: gx positive → roll positive
+    state.roll = Math.atan2(gx, -gy) * 180 / Math.PI;
   };
 
-  // --- AZIMUTH via deviceorientation ---
+  // --- AZIMUTH via deviceorientation with auto declination correction ---
   AR.orientAbsListener = (e) => {
     let h = null;
     if (e.webkitCompassHeading !== undefined && e.webkitCompassHeading !== null) {
-      h = e.webkitCompassHeading; // iOS — already true heading
+      // iOS: webkitCompassHeading is magnetic — add declination for true north
+      h = (e.webkitCompassHeading + AR.declination + 360) % 360;
     } else if (e.absolute && e.alpha !== null) {
-      h = (360 - e.alpha) % 360; // Android absolute — convert to compass
+      // Android absolute=true: OS already gives true north
+      h = (360 - e.alpha) % 360;
     } else if (e.alpha !== null) {
-      h = (360 - e.alpha) % 360; // fallback
+      // Android fallback: magnetic, apply declination
+      h = ((360 - e.alpha) + AR.declination + 360) % 360;
     }
     if (h === null) return;
-    // EMA smooth — handle wrap-around at 0/360
+    updateCompassQuality(h);
     if (AR.smoothAz === null) {
       AR.smoothAz = h;
     } else {
@@ -1609,13 +1617,13 @@ function stopSensors() {
     window.removeEventListener('deviceorientation', AR.orientAbsListener, true);
   }
   AR.smoothAz = null; AR.smoothEl = null; AR.rawEl = null;
-  setStatus('sensor', 'warn', 'Sensors off');
+  // Note: do not update status bar here — called only on full app teardown
 }
 
 function stopAR() {
   if (state.arStream) { state.arStream.getTracks().forEach(t => t.stop()); state.arStream = null; }
   if (arAnimFrame) { cancelAnimationFrame(arAnimFrame); arAnimFrame = null; }
-  stopSensors();
+  // Do NOT stop sensors or change sensor status — sensors keep running
   document.getElementById('arActive').style.display = 'none';
   document.getElementById('arNoSupport').style.display = 'flex';
   document.querySelector('header').style.display = '';
@@ -1624,30 +1632,63 @@ function stopAR() {
   switchTab('align');
 }
 
-// Calibration: two-tap flow
-// Tap 1 → show banner "point at horizon"
-// Tap 2 → capture offset
-function arCalibrate() {
-  if (AR.calStep === 0) {
-    AR.calStep = 1;
-    document.getElementById('arCalBanner').style.display = '';
-    document.getElementById('arCalBtn').textContent = '✓ Set';
-    document.getElementById('arCalBtn').style.background = 'rgba(255,204,0,0.8)';
-    document.getElementById('arCalBtn').style.color = '#000';
-  } else {
-    // Capture: at horizon, real elevation = 0, so offset = rawEl
-    if (AR.rawEl === null) { AR.calStep = 0; return; }
-    AR.elOffset = AR.rawEl;
-    AR.smoothEl = null; // reset smooth so it picks up immediately
-    AR.calStep = 0;
-    document.getElementById('arCalBanner').style.display = 'none';
-    document.getElementById('arCalBtn').textContent = '⊙ Cal';
-    document.getElementById('arCalBtn').style.background = '';
-    document.getElementById('arCalBtn').style.color = '';
+// ============================================================
+// MAGNETIC DECLINATION — simplified WMM for auto true-north correction
+// Accurate to ~0.5° — sufficient for satellite dish alignment
+// ============================================================
+function getMagneticDeclination(lat, lon) {
+  const latR = lat * Math.PI / 180;
+  const lonR = lon * Math.PI / 180;
+  const sinLat = Math.sin(latR), cosLat = Math.cos(latR);
+  const sinLon = Math.sin(lonR), cosLon = Math.cos(lonR);
+  // Simplified dipole + quadrupole terms from WMM2020
+  const Bx = -(-29404.5 * sinLat
+    + (-1450.7 * cosLon + 4652.9 * sinLon) * cosLat
+    + (-2500.0 * (3*sinLat*sinLat-1)/2)
+    + (2982.0 * cosLon - 2991.6 * sinLon) * sinLat * cosLat);
+  const By = (-1450.7 * sinLon - 4652.9 * cosLon) * cosLat
+    + (2982.0 * sinLon + 2991.6 * cosLon) * sinLat
+    + (1676.6 * sinLon*2 + 734.7 * cosLon*2) * cosLat;
+  const decl = Math.atan2(By, Bx) * 180 / Math.PI;
+  return Math.max(-30, Math.min(30, decl));
+}
+
+// ============================================================
+// COMPASS QUALITY — circular variance of recent headings
+// ============================================================
+const compassHistory = [];
+let compassQuality = -1;
+let fig8BannerTimer = null;
+
+function updateCompassQuality(h) {
+  compassHistory.push(h);
+  if (compassHistory.length > 20) compassHistory.shift();
+  if (compassHistory.length < 6) return;
+  let sinSum = 0, cosSum = 0;
+  compassHistory.forEach(a => { sinSum += Math.sin(a*Math.PI/180); cosSum += Math.cos(a*Math.PI/180); });
+  const R = Math.sqrt(sinSum*sinSum + cosSum*cosSum) / compassHistory.length;
+  const prev = compassQuality;
+  if (R > 0.97)      compassQuality = 3;
+  else if (R > 0.90) compassQuality = 2;
+  else if (R > 0.75) compassQuality = 1;
+  else               compassQuality = 0;
+  const dots = document.getElementById('arCompassDots');
+  if (dots) {
+    const map = ['○○○','●○○','●●○','●●●'];
+    const col = ['#ff3355','#ff6b00','#ffcc00','#00ff88'];
+    dots.textContent = map[compassQuality];
+    dots.style.color = col[compassQuality];
+  }
+  if (compassQuality <= 1 && compassHistory.length >= 10) {
+    const b = document.getElementById('arFig8Banner');
+    if (b) {
+      b.style.display = '';
+      if (fig8BannerTimer) clearTimeout(fig8BannerTimer);
+      fig8BannerTimer = setTimeout(() => { b.style.display = 'none'; }, 5000);
+    }
   }
 }
 
-// Compatibility shim — keep old name working
 async function requestOrientationPermission() { await startSensors(); }
 function startARSensors() {}
 
@@ -1669,12 +1710,12 @@ function drawARLoop() {
   const hasAz  = state.heading !== null;
   const hasEl  = state.tilt !== null;
 
-  // Compute deltas
   let dAz = null, dEl = null;
   if (hasSat && hasAz) dAz = ((state.azimuth - state.heading + 540) % 360) - 180;
   if (hasSat && hasEl) dEl = state.elevation - state.tilt;
 
   const locked = dAz !== null && dEl !== null && Math.abs(dAz) < 4 && Math.abs(dEl) < 2;
+  const S = Math.min(W, H) * 0.13;
 
   // Update HUD text
   if (hasAz) document.getElementById('arPhoneAz').textContent = state.heading.toFixed(1) + '°';
@@ -1710,14 +1751,34 @@ function drawARLoop() {
     elValEl.style.color = '#6a8aaa'; elDirEl.style.color = '#6a8aaa';
   }
 
-  // ---- CROSSHAIR ----
-  const crossColor = locked ? '#00ff88' : '#00d4ff';
-  const S = Math.min(W, H) * 0.12; // crosshair size scales with screen
-  const arm = S * 0.48;
+  // ============================================================
+  // CARDINAL COMPASS BAR — top of screen, scrolls with heading
+  // ============================================================
+  if (hasAz) {
+    drawCardinalBar(ctx, W, H, state.heading, state.azimuth);
+  }
 
+  // ============================================================
+  // ROLL / LEVELNESS INDICATOR — bottom center above HUD
+  // ============================================================
+  if (state.roll !== null) {
+    drawRollIndicator(ctx, cx, H - 90, state.roll);
+  }
+
+  // ============================================================
+  // ACCURACY RING — shrinks as you approach lock
+  // ============================================================
+  if (dAz !== null && dEl !== null) {
+    drawAccuracyRing(ctx, cx, cy, S, dAz, dEl, locked);
+  }
+
+  // ============================================================
+  // CROSSHAIR
+  // ============================================================
+  const crossColor = locked ? '#00ff88' : '#00d4ff';
+  const arm = S * 0.48;
   ctx.shadowBlur = 20; ctx.shadowColor = crossColor;
   ctx.strokeStyle = crossColor; ctx.lineWidth = 2.5;
-
   [[-1,-1],[1,-1],[1,1],[-1,1]].forEach(([sx, sy]) => {
     ctx.beginPath();
     ctx.moveTo(cx + sx * S, cy + sy * S - sy * arm);
@@ -1725,7 +1786,6 @@ function drawARLoop() {
     ctx.lineTo(cx + sx * S - sx * arm, cy + sy * S);
     ctx.stroke();
   });
-  // Center cross
   const cc = S * 0.22;
   ctx.beginPath();
   ctx.moveTo(cx - cc, cy); ctx.lineTo(cx + cc, cy);
@@ -1735,18 +1795,20 @@ function drawARLoop() {
   ctx.fillStyle = crossColor; ctx.fill();
   ctx.shadowBlur = 0;
 
-  // ---- LOCKED RING ----
+  // ============================================================
+  // LOCKED ON label
+  // ============================================================
   if (locked) {
-    ctx.beginPath(); ctx.arc(cx, cy, S * 1.3, 0, Math.PI * 2);
-    ctx.strokeStyle = '#00ff88'; ctx.lineWidth = 3;
-    ctx.shadowBlur = 28; ctx.shadowColor = '#00ff88';
-    ctx.stroke(); ctx.shadowBlur = 0;
-    ctx.font = `bold ${Math.round(S*0.38)}px Rajdhani, sans-serif`;
+    ctx.font = `bold ${Math.round(S*0.36)}px Rajdhani, sans-serif`;
     ctx.fillStyle = '#00ff88'; ctx.textAlign = 'center';
-    ctx.fillText('✓ LOCKED ON', cx, cy + S * 1.7);
+    ctx.shadowBlur = 16; ctx.shadowColor = '#00ff88';
+    ctx.fillText('✓ LOCKED ON', cx, cy + S * 1.85);
+    ctx.shadowBlur = 0;
   }
 
-  // ---- DIRECTION ARROWS ----
+  // ============================================================
+  // DIRECTION ARROWS
+  // ============================================================
   if (!locked) {
     const pad = Math.min(W, H) * 0.1;
     if (dAz !== null) {
@@ -1754,12 +1816,197 @@ function drawARLoop() {
       if (dAz < -4) drawARArrow(ctx, pad,     cy, 'left',  Math.min(1, Math.abs(dAz)/30));
     }
     if (dEl !== null) {
-      if (dEl > 2)  drawARArrow(ctx, cx, pad,     'up',   Math.min(1, Math.abs(dEl)/20));
-      if (dEl < -2) drawARArrow(ctx, cx, H - pad, 'down', Math.min(1, Math.abs(dEl)/20));
+      if (dEl > 2)  drawARArrow(ctx, cx, pad + 60,  'up',   Math.min(1, Math.abs(dEl)/20));
+      if (dEl < -2) drawARArrow(ctx, cx, H - pad - 100, 'down', Math.min(1, Math.abs(dEl)/20));
     }
   }
 
   arAnimFrame = requestAnimationFrame(drawARLoop);
+}
+
+// ============================================================
+// CARDINAL COMPASS BAR
+// ============================================================
+function drawCardinalBar(ctx, W, H, heading, targetAz) {
+  const barY = 58;
+  const barH = 36;
+  const degsVisible = 90; // how many degrees of compass visible across width
+  const pxPerDeg = W / degsVisible;
+
+  // Background strip
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.fillRect(0, barY, W, barH);
+  // Border
+  ctx.fillStyle = 'rgba(255,255,255,0.06)';
+  ctx.fillRect(0, barY, W, 1);
+  ctx.fillRect(0, barY + barH - 1, W, 1);
+
+  const cx = W / 2;
+
+  // Draw ticks for ±(degsVisible/2) around heading
+  ctx.save();
+  ctx.beginPath(); ctx.rect(0, barY, W, barH); ctx.clip();
+
+  for (let d = -60; d <= 60; d++) {
+    const deg = ((heading + d) % 360 + 360) % 360;
+    const x = cx + d * pxPerDeg;
+    const isMajor = deg % 45 === 0;
+    const is15 = deg % 15 === 0;
+    if (!is15 && !isMajor) continue;
+    const tickH = isMajor ? 14 : 7;
+    ctx.beginPath();
+    ctx.moveTo(x, barY + barH - tickH);
+    ctx.lineTo(x, barY + barH);
+    ctx.strokeStyle = isMajor ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.25)';
+    ctx.lineWidth = isMajor ? 2 : 1;
+    ctx.stroke();
+
+    if (isMajor) {
+      const label = ['N','NE','E','SE','S','SW','W','NW'][deg/45];
+      ctx.font = `bold 11px Rajdhani, sans-serif`;
+      ctx.fillStyle = label === 'N' ? '#ff4466' : label === 'S' ? '#ffcc00' : 'rgba(255,255,255,0.7)';
+      ctx.textAlign = 'center';
+      ctx.fillText(label, x, barY + 14);
+    }
+  }
+
+  // Target satellite marker on compass bar
+  const satOffset = ((targetAz - heading + 540) % 360) - 180;
+  const satX = cx + satOffset * pxPerDeg;
+  if (satX > -10 && satX < W + 10) {
+    ctx.shadowBlur = 10; ctx.shadowColor = '#00d4ff';
+    ctx.fillStyle = '#00d4ff';
+    // Triangle pointer
+    ctx.beginPath();
+    ctx.moveTo(satX, barY + barH - 2);
+    ctx.lineTo(satX - 7, barY + barH - 14);
+    ctx.lineTo(satX + 7, barY + barH - 14);
+    ctx.closePath(); ctx.fill();
+    ctx.shadowBlur = 0;
+    // Label
+    ctx.font = 'bold 9px Rajdhani, sans-serif';
+    ctx.fillStyle = '#00d4ff';
+    ctx.textAlign = 'center';
+    ctx.fillText('SAT', satX, barY + 10);
+  }
+
+  ctx.restore();
+
+  // Center heading readout
+  ctx.font = 'bold 13px Share Tech Mono, monospace';
+  ctx.fillStyle = '#fff';
+  ctx.textAlign = 'center';
+  ctx.fillText(Math.round(heading) + '°', cx, barY - 4);
+
+  // Center tick mark
+  ctx.beginPath();
+  ctx.moveTo(cx, barY);
+  ctx.lineTo(cx, barY + barH);
+  ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+}
+
+// ============================================================
+// ROLL / LEVELNESS INDICATOR
+// ============================================================
+function drawRollIndicator(ctx, cx, y, roll) {
+  const barW = 160;
+  const barH = 10;
+  const maxRoll = 30; // degrees at edge of bar
+  const bx = cx - barW / 2;
+
+  // Background
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  roundRect(ctx, bx - 20, y - 20, barW + 40, 40, 8);
+  ctx.fill();
+
+  // Track
+  ctx.fillStyle = 'rgba(255,255,255,0.1)';
+  roundRect(ctx, bx, y - barH/2, barW, barH, barH/2);
+  ctx.fill();
+
+  // Center zone (good zone ±5°)
+  const goodW = barW * (10 / (maxRoll * 2));
+  ctx.fillStyle = 'rgba(0,255,136,0.2)';
+  roundRect(ctx, cx - goodW/2, y - barH/2, goodW, barH, barH/2);
+  ctx.fill();
+
+  // Ball position
+  const clampedRoll = Math.max(-maxRoll, Math.min(maxRoll, roll));
+  const ballX = cx + (clampedRoll / maxRoll) * (barW / 2);
+  const isLevel = Math.abs(roll) < 5;
+  const ballColor = isLevel ? '#00ff88' : Math.abs(roll) < 12 ? '#ffcc00' : '#ff3355';
+
+  ctx.shadowBlur = 12; ctx.shadowColor = ballColor;
+  ctx.beginPath(); ctx.arc(ballX, y, 9, 0, Math.PI * 2);
+  ctx.fillStyle = ballColor; ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // Center mark
+  ctx.beginPath(); ctx.moveTo(cx, y - barH/2 - 4); ctx.lineTo(cx, y + barH/2 + 4);
+  ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 1.5; ctx.stroke();
+
+  // Label
+  ctx.font = 'bold 10px Rajdhani, sans-serif';
+  ctx.fillStyle = ballColor; ctx.textAlign = 'center';
+  ctx.fillText(isLevel ? '✓ LEVEL' : 'ROLL ' + (roll >= 0 ? '+' : '') + roll.toFixed(0) + '°', cx, y + 22);
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+// ============================================================
+// ACCURACY RING — shrinks as you approach lock
+// ============================================================
+function drawAccuracyRing(ctx, cx, cy, S, dAz, dEl, locked) {
+  // Ring radius proportional to total angular error
+  const totalErr = Math.sqrt(dAz * dAz + dEl * dEl);
+  const maxErr = 40;
+  const minR = S * 1.1;
+  const maxR = S * 4.5;
+  const ringR = locked ? minR : minR + (Math.min(totalErr, maxErr) / maxErr) * (maxR - minR);
+
+  // Color: red→yellow→green
+  const t = Math.max(0, 1 - totalErr / maxErr);
+  const r = Math.round(255 * (1 - t));
+  const g = Math.round(255 * t);
+  const ringColor = locked ? '#00ff88' : `rgb(${r},${g},0)`;
+
+  // Dashed ring — gap size shrinks as you get closer
+  const dashLen = locked ? 999 : 12;
+  const gapLen  = locked ? 0   : Math.max(4, 20 * (totalErr / maxErr));
+  ctx.setLineDash([dashLen, gapLen]);
+  ctx.beginPath(); ctx.arc(cx, cy, ringR, 0, Math.PI * 2);
+  ctx.strokeStyle = ringColor;
+  ctx.lineWidth = locked ? 2.5 : 1.5;
+  ctx.globalAlpha = locked ? 0.9 : 0.45;
+  ctx.shadowBlur = locked ? 20 : 0; ctx.shadowColor = '#00ff88';
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.globalAlpha = 1;
+  ctx.shadowBlur = 0;
+
+  // Error label inside ring (only when not locked)
+  if (!locked && totalErr < maxErr * 0.7) {
+    ctx.font = `bold 11px Share Tech Mono, monospace`;
+    ctx.fillStyle = ringColor;
+    ctx.textAlign = 'center';
+    ctx.globalAlpha = 0.7;
+    ctx.fillText(totalErr.toFixed(0) + '°', cx, cy - ringR - 6);
+    ctx.globalAlpha = 1;
+  }
 }
 
 function drawARArrow(ctx, x, y, dir, intensity) {
