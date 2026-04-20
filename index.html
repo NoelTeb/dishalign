@@ -634,22 +634,55 @@
     <!-- Results -->
     <div class="card" id="resultsCard" style="display:none">
       <div class="card-title">📐 Pointing Data</div>
-      <div class="metrics-grid">
+      <div class="metrics-grid" style="grid-template-columns:1fr 1fr 1fr">
         <div class="metric az">
           <div class="metric-label">Azimuth</div>
           <div class="metric-value" id="resAz">--</div>
-          <div class="metric-unit">degrees</div>
+          <div class="metric-unit">True North</div>
         </div>
         <div class="metric el">
-          <div class="metric-label">Elevation</div>
+          <div class="metric-label">Sat Elevation</div>
           <div class="metric-value" id="resEl">--</div>
-          <div class="metric-unit">degrees</div>
+          <div class="metric-unit">in sky</div>
         </div>
         <div class="metric sk">
           <div class="metric-label">LNB Skew</div>
           <div class="metric-value" id="resSk">--</div>
           <div class="metric-unit">degrees</div>
         </div>
+      </div>
+
+      <!-- Dish offset + physical tilt -->
+      <div class="divider"></div>
+      <div class="card-title">📡 Dish Face Tilt (Physical)</div>
+      <div class="row mb-8">
+        <div class="loc-field" style="flex:1.2">
+          <label>Dish Offset Angle</label>
+          <select id="dishOffset" onchange="recalcDishTilt()">
+            <option value="22.5" selected>22.5° — Standard offset (most dishes)</option>
+            <option value="23">23° — Fuba, Kathrein</option>
+            <option value="22.6">22.6° — Triax TD78/88/110</option>
+            <option value="22.5">22.5° — Cahors, Gibertini</option>
+            <option value="26">26° — Some Technomate</option>
+            <option value="0">0° — Prime focus (no offset)</option>
+            <option value="custom">Custom...</option>
+          </select>
+        </div>
+        <div class="loc-field" id="customOffsetField" style="display:none">
+          <label>Custom (°)</label>
+          <input type="number" id="customOffsetVal" step="0.5" oninput="recalcDishTilt()" placeholder="e.g. 24">
+        </div>
+      </div>
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center">
+        <div style="font-size:10px;letter-spacing:2px;color:var(--text-dim);text-transform:uppercase;margin-bottom:8px">Set the dish scale / protractor to:</div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:34px;color:var(--warn);font-weight:700;line-height:1" id="resPhysTilt">--°</div>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:6px">(Sat elevation minus dish offset angle)</div>
+      </div>
+      <div class="skew-visual" style="padding:14px 0 4px">
+        <canvas id="dishTiltCanvas" width="280" height="180"></canvas>
+      </div>
+      <div style="font-size:11px;color:var(--text-dim);line-height:1.6;padding:0 2px">
+        💡 <strong style="color:var(--text)">Offset dishes</strong> (most common) look nearly vertical or even point downward because the beam reflects off the curved surface at a steep upward angle. This is normal. Use the <strong style="color:var(--accent)">Physical Tilt</strong> value on the elevation scale on the back of the dish mount. Many dish scales are already pre-calibrated — in that case use the <strong style="color:var(--accent)">Sat Elevation</strong> directly (check your dish's manual).
       </div>
 
       <!-- Compass -->
@@ -1166,6 +1199,142 @@ function calculate() {
   // Update AR targets
   document.getElementById('arTargetAz').textContent = azimuth.toFixed(1) + '°';
   document.getElementById('arTargetEl').textContent = elevation.toFixed(1) + '°';
+
+  // Update physical dish tilt
+  recalcDishTilt();
+}
+
+// ============================================================
+// DISH PHYSICAL TILT - for offset dishes
+// ============================================================
+function recalcDishTilt() {
+  if (state.elevation === null) return;
+  const sel = document.getElementById('dishOffset');
+  const customField = document.getElementById('customOffsetField');
+  let offset;
+  if (sel.value === 'custom') {
+    customField.style.display = '';
+    offset = parseFloat(document.getElementById('customOffsetVal').value) || 22.5;
+  } else {
+    customField.style.display = 'none';
+    offset = parseFloat(sel.value);
+  }
+  const physTilt = state.elevation - offset;
+  state.physTilt = physTilt;
+  state.dishOffset = offset;
+  document.getElementById('resPhysTilt').textContent = physTilt.toFixed(1) + '°';
+  drawDishTilt(state.elevation, offset, physTilt);
+}
+
+function drawDishTilt(satEl, offset, physTilt) {
+  const canvas = document.getElementById('dishTiltCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  // Ground line
+  const groundY = H - 20;
+  ctx.strokeStyle = '#2a4a6a'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(20, groundY); ctx.lineTo(W - 20, groundY); ctx.stroke();
+  // Ground hash marks
+  ctx.strokeStyle = '#1e3048'; ctx.lineWidth = 1;
+  for (let x = 20; x < W - 20; x += 10) {
+    ctx.beginPath(); ctx.moveTo(x, groundY); ctx.lineTo(x - 4, groundY + 5); ctx.stroke();
+  }
+
+  // Mount pole
+  const poleX = W * 0.3;
+  const poleBase = groundY;
+  const poleTop = groundY - 70;
+  ctx.strokeStyle = '#6a8aaa'; ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.moveTo(poleX, poleBase); ctx.lineTo(poleX, poleTop); ctx.stroke();
+
+  // Dish face — tilted at physTilt from vertical
+  // When physTilt = 0 → dish face is vertical (90° from ground)
+  // When physTilt = 45 → dish face tilted back 45°
+  const tiltRad = (physTilt) * Math.PI / 180;
+  const dishLen = 70;
+  // Dish face vector (pointing outward from center)
+  // Vertical dish = vertical line. Tilted back = tilts backward from vertical
+  const dishTopX = poleX + Math.sin(tiltRad) * dishLen;
+  const dishTopY = poleTop - Math.cos(tiltRad) * dishLen;
+  const dishBotX = poleX - Math.sin(tiltRad) * 15;
+  const dishBotY = poleTop + Math.cos(tiltRad) * 15;
+
+  // Dish (curved thick arc)
+  ctx.strokeStyle = '#00d4ff'; ctx.lineWidth = 6;
+  ctx.lineCap = 'round';
+  ctx.shadowBlur = 10; ctx.shadowColor = '#00d4ff';
+  ctx.beginPath();
+  ctx.moveTo(dishBotX, dishBotY);
+  // Slight curve for dish shape
+  const ctrlX = (dishTopX + dishBotX) / 2 - Math.cos(tiltRad) * 8;
+  const ctrlY = (dishTopY + dishBotY) / 2 + Math.sin(tiltRad) * 8;
+  ctx.quadraticCurveTo(ctrlX, ctrlY, dishTopX, dishTopY);
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  ctx.lineCap = 'butt';
+
+  // LNB arm + LNB - points toward the dish from in front
+  const armAngle = tiltRad;
+  const armLen = 45;
+  const dishMidX = (dishTopX + dishBotX) / 2;
+  const dishMidY = (dishTopY + dishBotY) / 2;
+  const armOutX = dishMidX + Math.cos(armAngle) * armLen;
+  const armOutY = dishMidY + Math.sin(armAngle) * armLen;
+  ctx.strokeStyle = '#6a8aaa'; ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(dishMidX, dishMidY);
+  ctx.lineTo(armOutX, armOutY);
+  ctx.stroke();
+  // LNB box
+  ctx.fillStyle = '#1e3048';
+  ctx.strokeStyle = '#ff6b00'; ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(armOutX, armOutY, 7, 0, Math.PI * 2);
+  ctx.fill(); ctx.stroke();
+
+  // Satellite signal beam — comes from upper right at satEl above horizon
+  const beamAngle = -satEl * Math.PI / 180; // negative = upward in canvas
+  const beamStartX = W - 30;
+  const beamStartY = groundY - Math.tan(satEl * Math.PI / 180) * (W - 30 - dishMidX);
+  ctx.strokeStyle = 'rgba(255,204,0,0.6)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([6, 4]);
+  ctx.beginPath();
+  ctx.moveTo(beamStartX, Math.max(10, beamStartY));
+  ctx.lineTo(dishMidX, dishMidY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Reflected beam to LNB
+  ctx.strokeStyle = 'rgba(0,255,136,0.7)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([4, 3]);
+  ctx.beginPath();
+  ctx.moveTo(dishMidX, dishMidY);
+  ctx.lineTo(armOutX, armOutY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Sat icon
+  ctx.font = '14px sans-serif'; ctx.textAlign = 'center';
+  ctx.fillStyle = '#ffcc00';
+  ctx.fillText('🛰', beamStartX, Math.max(20, beamStartY) - 4);
+
+  // Labels
+  ctx.font = 'bold 10px Rajdhani, sans-serif';
+  ctx.fillStyle = '#ffcc00'; ctx.textAlign = 'left';
+  ctx.fillText('Sat ' + satEl.toFixed(1) + '°', W - 80, 14);
+
+  ctx.fillStyle = '#00d4ff'; ctx.textAlign = 'center';
+  const labelText = physTilt >= 0 ? 'Tilt back ' + physTilt.toFixed(1) + '°' : 'Tilt down ' + Math.abs(physTilt).toFixed(1) + '°';
+  ctx.fillText(labelText, dishTopX, dishTopY - 6);
+
+  ctx.fillStyle = 'rgba(255,255,255,0.4)'; ctx.textAlign = 'left';
+  ctx.fillText('Ground', 22, H - 6);
+  ctx.fillText('Offset: ' + offset + '°', 22, 14);
 }
 
 // ============================================================
