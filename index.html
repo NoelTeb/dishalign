@@ -582,6 +582,9 @@
   <div class="tab active" onclick="switchTab('align')" id="tab-align">
     <span class="tab-icon">🎯</span>ALIGN
   </div>
+  <div class="tab" onclick="switchTab('guide');renderWizard()" id="tab-guide">
+    <span class="tab-icon">🪄</span>GUIDE
+  </div>
   <div class="tab" onclick="switchTab('ar')" id="tab-ar">
     <span class="tab-icon">📷</span>AR VIEW
   </div>
@@ -738,6 +741,19 @@
 
   </div>
 
+  <!-- ===== GUIDE TAB (Install Wizard) ===== -->
+  <div class="panel" id="panel-guide">
+    <div class="card">
+      <div class="card-title">🪄 Guided Install Wizard</div>
+      <div id="wizDots" style="display:flex;gap:5px;justify-content:center;margin-bottom:14px"></div>
+      <div id="wizBody"></div>
+      <div class="row" style="margin-top:14px">
+        <button class="btn btn-secondary" id="wizBackBtn" onclick="wizPrev()">← Back</button>
+        <button class="btn btn-primary" id="wizNextBtn" onclick="wizNext()">Next →</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ===== AR TAB - FULLSCREEN ===== -->
   <div class="panel" id="panel-ar">
 
@@ -884,6 +900,53 @@
       <div id="cableResult"></div>
     </div>
 
+    <!-- Quick Measure -->
+    <div class="card">
+      <div class="card-title">📏 Quick Measure (phone as tool)</div>
+      <div style="font-size:11px;color:var(--text-dim);margin-bottom:10px;line-height:1.5">Place the phone flat against the surface to read its real angle live.</div>
+      <div class="row mb-8">
+        <button class="btn btn-secondary" onclick="startMeasure('plumb')">📍 Pole Plumb</button>
+        <button class="btn btn-secondary" onclick="startMeasure('dishtilt')">📡 Dish Tilt</button>
+      </div>
+      <button class="btn btn-secondary btn-full" onclick="startMeasure('skew')">🔄 LNB Skew</button>
+    </div>
+
+    <!-- Sun Compass -->
+    <div class="card">
+      <div class="card-title">☀️ Sun Compass (true bearing, no magnetics)</div>
+      <div style="font-size:11px;color:var(--text-dim);margin-bottom:10px;line-height:1.5">When the magnetic compass is unreliable, use the sun. Position is computed from GPS + clock — accurate to under 1°.</div>
+      <div class="metrics-grid" style="margin-bottom:10px">
+        <div class="metric"><div class="metric-label">Sun Azimuth</div><div class="metric-value" id="sunAz" style="font-size:18px;color:var(--warn)">--</div><div class="metric-unit">true</div></div>
+        <div class="metric"><div class="metric-label">Sun Height</div><div class="metric-value" id="sunEl" style="font-size:18px;color:var(--warn)">--</div><div class="metric-unit">elev</div></div>
+        <div class="metric"><div class="metric-label">Sat − Sun</div><div class="metric-value" id="sunDelta" style="font-size:18px;color:var(--accent)">--</div><div class="metric-unit">turn</div></div>
+      </div>
+      <div id="sunInstr" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;font-size:12px;line-height:1.6;color:var(--text)"></div>
+    </div>
+
+    <!-- Multi-LNB Calculator -->
+    <div class="card">
+      <div class="card-title">📡📡 Multi-LNB Offset Calculator</div>
+      <div style="font-size:11px;color:var(--text-dim);margin-bottom:10px;line-height:1.5">Add a 2nd LNB on the same dish for a 2nd satellite. Primary = satellite selected on ALIGN tab.</div>
+      <div class="row mb-8">
+        <div class="loc-field">
+          <label>2nd Satellite Longitude (°E, negative=W)</label>
+          <input type="number" id="mlSatLon" step="0.1" placeholder="e.g. 13 for Hotbird">
+        </div>
+      </div>
+      <div class="row mb-8">
+        <div class="loc-field">
+          <label>Dish Diameter (cm)</label>
+          <input type="number" id="mlDishD" value="90" min="40" max="300">
+        </div>
+        <div class="loc-field">
+          <label>F/D Ratio</label>
+          <input type="number" id="mlFD" value="0.6" step="0.05" min="0.3" max="1">
+        </div>
+      </div>
+      <button class="btn btn-primary btn-full" onclick="calcMultiLNB()">Calculate 2nd LNB Position</button>
+      <div id="mlResult"></div>
+    </div>
+
     <!-- Frequency Reference -->
     <div class="card">
       <div class="card-title">📡 Frequency Reference</div>
@@ -924,6 +987,25 @@
 
   </div>
 
+</div>
+
+<!-- Measurement Overlay -->
+<div id="measureOverlay" style="display:none;position:fixed;inset:0;z-index:2000;background:var(--bg);flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center">
+  <div id="mTitle" style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:20px;color:var(--accent);letter-spacing:2px;margin-bottom:6px"></div>
+  <div id="mInstr" style="font-size:12px;color:var(--text-dim);max-width:300px;line-height:1.6;margin-bottom:18px"></div>
+  <canvas id="mCanvas" width="220" height="220" style="margin-bottom:14px"></canvas>
+  <div style="display:flex;gap:24px;margin-bottom:8px">
+    <div>
+      <div style="font-size:10px;letter-spacing:2px;color:var(--text-dim)">CURRENT</div>
+      <div id="mCurrent" style="font-family:'Share Tech Mono',monospace;font-size:42px;font-weight:700;color:var(--accent)">--</div>
+    </div>
+    <div id="mTargetWrap">
+      <div style="font-size:10px;letter-spacing:2px;color:var(--text-dim)">TARGET</div>
+      <div id="mTarget" style="font-family:'Share Tech Mono',monospace;font-size:42px;font-weight:700;color:var(--warn)">--</div>
+    </div>
+  </div>
+  <div id="mStatus" style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:18px;margin-bottom:20px">--</div>
+  <button class="btn btn-primary" style="padding:12px 40px" onclick="stopMeasure()">✓ Done</button>
 </div>
 
 <div class="status-bar">
@@ -1161,24 +1243,14 @@ function calculate() {
   const cosEl = Math.cos(latR) * Math.cos(deltaLonR);
   const elevation = toDeg(Math.atan((cosEl - (Re / R)) / Math.sqrt(1 - cosEl * cosEl)));
 
-  // Azimuth (True North)
-  const az_rad = Math.atan2(Math.tan(deltaLonR), Math.sin(latR));
-  let azimuth = toDeg(az_rad);
-  if (lat >= 0) {
-    azimuth = 180 + azimuth; // Northern hemisphere
-  } else {
-    azimuth = azimuth; // Southern hemisphere
-    if (azimuth < 0) azimuth += 360;
-  }
+  // Azimuth (True North) — exact great-circle bearing to subsatellite point.
+  // Handles both hemispheres and east/west correctly.
+  let azimuth = toDeg(Math.atan2(Math.sin(deltaLonR), -Math.sin(latR) * Math.cos(deltaLonR)));
   azimuth = ((azimuth % 360) + 360) % 360;
 
-  // LNB Skew
-  const skew = toDeg(Math.atan2(Math.sin(deltaLonR) * Math.cos(latR),
-    Math.sqrt(Math.cos(deltaLonR) * Math.cos(deltaLonR) * Math.sin(latR) * Math.sin(latR) + Math.sin(deltaLonR) * Math.sin(deltaLonR))));
-
-  // Correct skew sign for hemisphere
-  let skewFinal = skew;
-  if (deltaLonR > 0) skewFinal = -skew; // satellite to the east
+  // LNB Skew — standard polarization tilt formula.
+  // Positive = rotate clockwise when facing the dish from the front.
+  let skewFinal = toDeg(Math.atan2(Math.sin(deltaLonR), Math.tan(latR)));
 
   state.azimuth = azimuth;
   state.elevation = elevation;
@@ -2455,6 +2527,375 @@ function setStatus(type, level, text) {
   dot.className = 'status-dot ' + level;
   label.textContent = text;
 }
+
+// ============================================================
+// MEASUREMENT ENGINE — phone as inclinometer
+// ============================================================
+const MEASURE = { mode: null, listener: null, target: null };
+
+const MEASURE_DEFS = {
+  plumb:    { title: '📍 POLE PLUMB CHECK', instr: 'Hold the phone flat against the mounting pole (screen facing you, phone vertical). Both bubbles must center. Pole must be vertical in ALL directions or azimuth sweep will ruin elevation.', hasTarget: false },
+  dishtilt: { title: '📡 DISH FACE TILT', instr: 'Place the phone flat against the dish FACE (back of phone on dish, screen facing out). Reading shows the actual physical tilt of the dish.', hasTarget: true, targetKey: 'physTilt' },
+  skew:     { title: '🔄 LNB SKEW', instr: 'Hold the phone flat against the LNB face, top of phone aligned with LNB 0° mark. Rotate the LNB until current matches target. Positive = clockwise facing the dish.', hasTarget: true, targetKey: 'skew' }
+};
+
+function startMeasure(mode) {
+  const def = MEASURE_DEFS[mode];
+  if (!def) return;
+  MEASURE.mode = mode;
+  MEASURE.target = def.hasTarget && state[def.targetKey] !== undefined && state[def.targetKey] !== null ? state[def.targetKey] : null;
+  document.getElementById('mTitle').textContent = def.title;
+  document.getElementById('mInstr').textContent = def.instr;
+  document.getElementById('mTargetWrap').style.display = def.hasTarget ? '' : 'none';
+  document.getElementById('mTarget').textContent = MEASURE.target !== null ? MEASURE.target.toFixed(1) + '°' : '--';
+  document.getElementById('measureOverlay').style.display = 'flex';
+
+  MEASURE.listener = (e) => {
+    const g = e.accelerationIncludingGravity;
+    if (!g || g.x === null) return;
+    const gx = g.x || 0, gy = g.y || 0, gz = g.z || 0;
+    const horiz = Math.sqrt(gx * gx + gy * gy);
+    const pitch = Math.atan2(-gz, horiz) * 180 / Math.PI;   // lean back/forward from vertical
+    const roll  = Math.atan2(gx, -gy) * 180 / Math.PI;      // lean sideways
+    renderMeasure(pitch, roll);
+  };
+  // iOS permission
+  if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+    DeviceMotionEvent.requestPermission().then(() => {
+      window.addEventListener('devicemotion', MEASURE.listener, true);
+    }).catch(() => {});
+  } else {
+    window.addEventListener('devicemotion', MEASURE.listener, true);
+  }
+}
+
+function stopMeasure() {
+  if (MEASURE.listener) window.removeEventListener('devicemotion', MEASURE.listener, true);
+  MEASURE.listener = null;
+  MEASURE.mode = null;
+  document.getElementById('measureOverlay').style.display = 'none';
+}
+
+function renderMeasure(pitch, roll) {
+  const mode = MEASURE.mode;
+  if (!mode) return;
+  const cur = document.getElementById('mCurrent');
+  const st  = document.getElementById('mStatus');
+  const canvas = document.getElementById('mCanvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const cx = W/2, cy = H/2;
+  ctx.clearRect(0, 0, W, H);
+
+  if (mode === 'plumb') {
+    // 2-axis bubble level
+    cur.textContent = Math.max(Math.abs(pitch), Math.abs(roll)).toFixed(1) + '°';
+    const ok = Math.abs(pitch) < 1 && Math.abs(roll) < 1;
+    const near = Math.abs(pitch) < 3 && Math.abs(roll) < 3;
+    cur.style.color = ok ? '#00ff88' : near ? '#ffcc00' : '#ff3355';
+    st.textContent = ok ? '✓ POLE IS PLUMB' : 'Pitch ' + pitch.toFixed(1) + '° / Roll ' + roll.toFixed(1) + '°';
+    st.style.color = cur.style.color;
+    // rings
+    [80, 55, 30].forEach((r, i) => {
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2);
+      ctx.strokeStyle = i === 2 ? 'rgba(0,255,136,0.35)' : 'rgba(255,255,255,0.12)';
+      ctx.lineWidth = 1.5; ctx.stroke();
+    });
+    ctx.beginPath(); ctx.moveTo(cx-90, cy); ctx.lineTo(cx+90, cy); ctx.moveTo(cx, cy-90); ctx.lineTo(cx, cy+90);
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)'; ctx.stroke();
+    // bubble (clamp ±10° to canvas)
+    const bx = cx + Math.max(-90, Math.min(90, roll * 9));
+    const by = cy + Math.max(-90, Math.min(90, pitch * 9));
+    ctx.shadowBlur = 14; ctx.shadowColor = cur.style.color;
+    ctx.beginPath(); ctx.arc(bx, by, 12, 0, Math.PI*2);
+    ctx.fillStyle = cur.style.color; ctx.fill();
+    ctx.shadowBlur = 0;
+  } else if (mode === 'dishtilt') {
+    cur.textContent = pitch.toFixed(1) + '°';
+    const t = MEASURE.target;
+    const delta = t !== null ? t - pitch : null;
+    const ok = delta !== null && Math.abs(delta) < 0.5;
+    const near = delta !== null && Math.abs(delta) < 2;
+    cur.style.color = ok ? '#00ff88' : near ? '#ffcc00' : '#00d4ff';
+    st.textContent = delta === null ? 'No target — calculate on ALIGN first'
+      : ok ? '✓ DISH TILT CORRECT'
+      : (delta > 0 ? '▲ TILT BACK ' : '▼ TILT FORWARD ') + Math.abs(delta).toFixed(1) + '°';
+    st.style.color = ok ? '#00ff88' : near ? '#ffcc00' : '#ff3355';
+    // side gauge
+    drawTiltGauge(ctx, W, H, pitch, t);
+  } else if (mode === 'skew') {
+    cur.textContent = (roll >= 0 ? '+' : '') + roll.toFixed(1) + '°';
+    const t = MEASURE.target;
+    const delta = t !== null ? t - roll : null;
+    const ok = delta !== null && Math.abs(delta) < 0.5;
+    const near = delta !== null && Math.abs(delta) < 2;
+    cur.style.color = ok ? '#00ff88' : near ? '#ffcc00' : '#ff6b00';
+    st.textContent = delta === null ? 'No target — calculate on ALIGN first'
+      : ok ? '✓ SKEW CORRECT'
+      : (delta > 0 ? '↻ ROTATE CW ' : '↺ ROTATE CCW ') + Math.abs(delta).toFixed(1) + '°';
+    st.style.color = ok ? '#00ff88' : near ? '#ffcc00' : '#ff3355';
+    // rotation dial
+    drawSkewDial(ctx, W, H, roll, t);
+  }
+}
+
+function drawTiltGauge(ctx, W, H, cur, target) {
+  const cx = W/2, cy = H - 30, r = 90;
+  // arc -10..90
+  ctx.beginPath(); ctx.arc(cx, cy, r, Math.PI, Math.PI*1.55);
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 8; ctx.stroke();
+  const a = (deg) => Math.PI + (deg + 10) / 100 * (Math.PI * 0.55);
+  if (target !== null) {
+    const ta = a(Math.max(-10, Math.min(90, target)));
+    ctx.beginPath(); ctx.arc(cx, cy, r, ta - 0.02, ta + 0.02);
+    ctx.strokeStyle = '#ffcc00'; ctx.lineWidth = 16; ctx.stroke();
+  }
+  const ca = a(Math.max(-10, Math.min(90, cur)));
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(cx + (r - 14) * Math.cos(ca), cy + (r - 14) * Math.sin(ca));
+  ctx.strokeStyle = '#00d4ff'; ctx.lineWidth = 3;
+  ctx.shadowBlur = 10; ctx.shadowColor = '#00d4ff'; ctx.stroke(); ctx.shadowBlur = 0;
+  ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI*2); ctx.fillStyle = '#00d4ff'; ctx.fill();
+}
+
+function drawSkewDial(ctx, W, H, cur, target) {
+  const cx = W/2, cy = H/2, r = 85;
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2);
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 2; ctx.stroke();
+  for (let d = -40; d <= 40; d += 10) {
+    const rad = (d - 90) * Math.PI/180;
+    ctx.beginPath();
+    ctx.moveTo(cx + (r-8)*Math.cos(rad), cy + (r-8)*Math.sin(rad));
+    ctx.lineTo(cx + r*Math.cos(rad), cy + r*Math.sin(rad));
+    ctx.strokeStyle = d === 0 ? '#fff' : 'rgba(255,255,255,0.3)'; ctx.lineWidth = d === 0 ? 2 : 1; ctx.stroke();
+  }
+  if (target !== null) {
+    const tr = (target - 90) * Math.PI/180;
+    ctx.beginPath();
+    ctx.moveTo(cx + (r-20)*Math.cos(tr), cy + (r-20)*Math.sin(tr));
+    ctx.lineTo(cx + r*Math.cos(tr), cy + r*Math.sin(tr));
+    ctx.strokeStyle = '#ffcc00'; ctx.lineWidth = 5;
+    ctx.shadowBlur = 8; ctx.shadowColor = '#ffcc00'; ctx.stroke(); ctx.shadowBlur = 0;
+  }
+  const cr = (cur - 90) * Math.PI/180;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(cx + (r-6)*Math.cos(cr), cy + (r-6)*Math.sin(cr));
+  ctx.strokeStyle = '#ff6b00'; ctx.lineWidth = 3;
+  ctx.shadowBlur = 10; ctx.shadowColor = '#ff6b00'; ctx.stroke(); ctx.shadowBlur = 0;
+  ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI*2); ctx.fillStyle = '#ff6b00'; ctx.fill();
+}
+
+// ============================================================
+// SUN POSITION — NOAA solar calculator
+// ============================================================
+function sunPosition(lat, lon, date) {
+  const rad = Math.PI/180;
+  const time = date.getTime()/86400000 + 2440587.5;
+  const T = (time - 2451545.0)/36525;
+  const L0 = ((280.46646 + T*(36000.76983 + T*0.0003032)) % 360 + 360) % 360;
+  const M = 357.52911 + T*(35999.05029 - 0.0001537*T);
+  const e = 0.016708634 - T*(0.000042037 + 0.0000001267*T);
+  const C = Math.sin(M*rad)*(1.914602 - T*(0.004817+0.000014*T)) + Math.sin(2*M*rad)*(0.019993-0.000101*T) + Math.sin(3*M*rad)*0.000289;
+  const trueLong = L0 + C;
+  const omega = 125.04 - 1934.136*T;
+  const lambda = trueLong - 0.00569 - 0.00478*Math.sin(omega*rad);
+  const eps0 = 23 + (26 + (21.448 - T*(46.8150 + T*(0.00059 - T*0.001813)))/60)/60;
+  const eps = eps0 + 0.00256*Math.cos(omega*rad);
+  const decl = Math.asin(Math.sin(eps*rad)*Math.sin(lambda*rad))/rad;
+  const y = Math.tan(eps/2*rad)**2;
+  const eqTime = 4/rad*(y*Math.sin(2*L0*rad) - 2*e*Math.sin(M*rad) + 4*e*y*Math.sin(M*rad)*Math.cos(2*L0*rad) - 0.5*y*y*Math.sin(4*L0*rad) - 1.25*e*e*Math.sin(2*M*rad));
+  const utcMin = date.getUTCHours()*60 + date.getUTCMinutes() + date.getUTCSeconds()/60;
+  let tst = (utcMin + eqTime + 4*lon) % 1440; if (tst < 0) tst += 1440;
+  let ha = tst/4 - 180; if (ha < -180) ha += 360;
+  const cosZen = Math.sin(lat*rad)*Math.sin(decl*rad) + Math.cos(lat*rad)*Math.cos(decl*rad)*Math.cos(ha*rad);
+  const zen = Math.acos(Math.max(-1, Math.min(1, cosZen)))/rad;
+  const el = 90 - zen;
+  let az = Math.acos(Math.max(-1, Math.min(1, (Math.sin(lat*rad)*Math.cos(zen*rad) - Math.sin(decl*rad))/(Math.cos(lat*rad)*Math.sin(zen*rad)))))/rad;
+  az = ha > 0 ? (az + 180) % 360 : (540 - az) % 360;
+  return { az, el };
+}
+
+let sunTimer = null;
+function updateSunCompass() {
+  const azEl = document.getElementById('sunAz');
+  if (!azEl) return;
+  if (state.lat === null) {
+    azEl.textContent = '--';
+    document.getElementById('sunInstr').textContent = 'Set location on ALIGN tab first.';
+    return;
+  }
+  const sun = sunPosition(state.lat, state.lon, new Date());
+  azEl.textContent = sun.az.toFixed(1) + '°';
+  document.getElementById('sunEl').textContent = sun.el.toFixed(1) + '°';
+  const instr = document.getElementById('sunInstr');
+  if (sun.el < 0) {
+    document.getElementById('sunDelta').textContent = '--';
+    instr.innerHTML = '🌙 Sun is below the horizon. Use this tool during daylight.';
+    return;
+  }
+  if (state.azimuth !== null) {
+    const delta = ((state.azimuth - sun.az + 540) % 360) - 180;
+    document.getElementById('sunDelta').textContent = (delta >= 0 ? '+' : '') + delta.toFixed(1) + '°';
+    const dir = delta >= 0 ? 'CLOCKWISE (to the right)' : 'COUNTERCLOCKWISE (to the left)';
+    instr.innerHTML = '1. Face the sun directly (your shadow points straight behind you).<br>2. Turn <strong style="color:var(--accent)">' + Math.abs(delta).toFixed(1) + '° ' + dir + '</strong>.<br>3. You are now facing the satellite azimuth (<strong>' + state.azimuth.toFixed(1) + '°</strong>) — no compass needed.';
+  } else {
+    document.getElementById('sunDelta').textContent = '--';
+    instr.textContent = 'Select a satellite on ALIGN tab to get the turn instruction.';
+  }
+}
+
+// ============================================================
+// MULTI-LNB OFFSET CALCULATOR
+// ============================================================
+function calcMultiLNB() {
+  const out = document.getElementById('mlResult');
+  if (state.lat === null || state.satLon === null) {
+    out.innerHTML = '<div class="obs-result obs-unknown">Set location and primary satellite on ALIGN tab first.</div>';
+    return;
+  }
+  const sat2 = parseFloat(document.getElementById('mlSatLon').value);
+  const D = parseFloat(document.getElementById('mlDishD').value);
+  const FD = parseFloat(document.getElementById('mlFD').value);
+  if (isNaN(sat2) || isNaN(D) || isNaN(FD)) { out.innerHTML = '<div class="obs-result obs-unknown">Fill all fields.</div>'; return; }
+
+  // Az/El for both satellites
+  function azel(satLon) {
+    const latR = toRad(state.lat), dL = toRad(satLon - state.lon);
+    const Re = 6378.137, R = Re + 35786;
+    const cosEl = Math.cos(latR) * Math.cos(dL);
+    const el = toDeg(Math.atan((cosEl - Re/R) / Math.sqrt(1 - cosEl*cosEl)));
+    let az = toDeg(Math.atan2(Math.sin(dL), -Math.sin(latR) * Math.cos(dL)));
+    az = ((az % 360) + 360) % 360;
+    const skew = toDeg(Math.atan2(Math.sin(dL), Math.tan(latR)));
+    return { az, el, skew };
+  }
+  const p1 = azel(state.satLon);
+  const p2 = azel(sat2);
+  if (p2.el < 5) { out.innerHTML = '<div class="obs-result obs-blocked">2nd satellite is below/near the horizon from your location (' + p2.el.toFixed(1) + '°). Not receivable.</div>'; return; }
+
+  const F = FD * D; // focal length in cm
+  const dAzSky = ((p2.az - p1.az + 540) % 360 - 180) * Math.cos(toRad(p1.el)); // sky-angle compression
+  const dEl = p2.el - p1.el;
+  const lateral = F * Math.tan(toRad(Math.abs(dAzSky)));
+  const vertical = F * Math.tan(toRad(Math.abs(dEl)));
+  const totalSep = Math.abs(((sat2 - state.satLon + 540) % 360) - 180);
+
+  // Direction (beam inversion): sat2 EAST of primary → LNB LEFT when facing the dish front
+  const sat2IsEast = ((sat2 - state.satLon + 540) % 360 - 180) > 0;
+  const lateralDir = sat2IsEast ? 'LEFT' : 'RIGHT';
+  const verticalDir = dEl < 0 ? 'HIGHER (up)' : 'LOWER (down)'; // lower-elevation sat → LNB mounted higher
+
+  let feas = '';
+  if (totalSep > 16) feas = '<div class="cable-row danger" style="margin-top:6px">⚠️ ' + totalSep.toFixed(1) + '° separation is very wide — signal on the offset LNB will be weak. Use a 1m+ dish or a 2nd dish.</div>';
+  else if (totalSep > 10) feas = '<div class="cable-row warn" style="margin-top:6px">⚠️ ' + totalSep.toFixed(1) + '° separation is wide — works best on 90cm+ dishes. Expect lower signal on the offset LNB.</div>';
+
+  out.innerHTML = `
+    <div class="cable-result">
+      <div class="cable-row"><span>Orbital separation:</span><span>${totalSep.toFixed(1)}°</span></div>
+      <div class="cable-row"><span>2nd sat Az / El:</span><span>${p2.az.toFixed(1)}° / ${p2.el.toFixed(1)}°</span></div>
+      <div class="cable-row"><span>Focal length (F = F/D × D):</span><span>${F.toFixed(0)} cm</span></div>
+      <div class="cable-row total"><span>Move 2nd LNB sideways:</span><span>${lateral.toFixed(1)} cm ${lateralDir}</span></div>
+      <div class="cable-row total"><span>Move 2nd LNB vertically:</span><span>${vertical.toFixed(1)} cm ${verticalDir}</span></div>
+      <div class="cable-row"><span>2nd LNB skew:</span><span>${(p2.skew >= 0 ? '+' : '') + p2.skew.toFixed(1)}°</span></div>
+      ${feas}
+      <div style="margin-top:8px;font-size:11px;color:var(--text-dim);line-height:1.5">Directions are as seen FACING the dish from the FRONT. Offset dishes invert the image — fine-tune the final position by signal level. Connect both LNBs through a DiSEqC 2-in-1 switch.</div>
+    </div>`;
+}
+
+// ============================================================
+// INSTALL WIZARD
+// ============================================================
+let wizStep = 0;
+const WIZ_STEPS = ['Prep', 'Pole', 'Elevation', 'Azimuth', 'Skew', 'Verify', 'Save'];
+
+function renderWizard() {
+  const dots = document.getElementById('wizDots');
+  dots.innerHTML = WIZ_STEPS.map((s, i) =>
+    `<div style="flex:1;height:5px;border-radius:3px;background:${i < wizStep ? 'var(--accent3)' : i === wizStep ? 'var(--accent)' : 'var(--border)'}"></div>`
+  ).join('');
+
+  const body = document.getElementById('wizBody');
+  const ready = state.lat !== null && state.satLon !== null && state.azimuth !== null;
+  const big = (v, color) => `<div style="font-family:'Share Tech Mono',monospace;font-size:40px;font-weight:700;color:${color};text-align:center;margin:10px 0">${v}</div>`;
+  const sub = (t) => `<div style="font-size:12px;color:var(--text-dim);line-height:1.7">${t}</div>`;
+  const head = (t) => `<div style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:17px;color:var(--text);margin-bottom:8px">${t}</div>`;
+
+  let html = '';
+  switch (wizStep) {
+    case 0:
+      html = head('Step 1 — Preparation');
+      if (!ready) {
+        html += `<div class="obs-result obs-unknown" style="margin-bottom:10px">Location or satellite not set.</div>
+          <button class="btn btn-primary btn-full" onclick="switchTab('align')">Go to ALIGN tab →</button>`;
+      } else {
+        html += sub(`Site: <strong style="color:var(--text)">${state.lat.toFixed(4)}, ${state.lon.toFixed(4)}</strong><br>
+          Satellite: <strong style="color:var(--accent)">${state.satName}</strong><br><br>
+          Azimuth: <strong style="color:var(--accent)">${state.azimuth.toFixed(1)}°</strong> ·
+          Sat Elevation: <strong style="color:var(--accent3)">${state.elevation.toFixed(1)}°</strong> ·
+          Skew: <strong style="color:var(--accent2)">${(state.skew>=0?'+':'')+state.skew.toFixed(1)}°</strong> ·
+          Dish Tilt: <strong style="color:var(--warn)">${state.physTilt !== undefined && state.physTilt !== null ? state.physTilt.toFixed(1)+'°' : 'set offset on ALIGN'}</strong><br><br>
+          Tools needed: 10/13mm wrenches, the dish, LNB, cable, and this phone. Check the sky path is clear (Obstruction Check on ALIGN tab).`);
+      }
+      break;
+    case 1:
+      html = head('Step 2 — Pole Plumb') + sub(`Mount the pole/bracket. Then verify it is perfectly vertical — if the pole leans, rotating the dish will change the elevation and you will never find the satellite.<br><br>Hold the phone flat against the pole on two different sides (90° apart). Both must read under 1°.`) +
+        `<button class="btn btn-primary btn-full mt-8" onclick="startMeasure('plumb')">📍 Measure Pole Plumb</button>`;
+      break;
+    case 2:
+      html = head('Step 3 — Set Elevation') +
+        (ready ? big((state.physTilt !== undefined && state.physTilt !== null ? state.physTilt.toFixed(1) : '--') + '°', 'var(--warn)') : '') +
+        sub(`Mount the dish on the pole, leave azimuth bolts loose. Set the elevation using the scale on the dish bracket to the value above (physical tilt), or verify with the phone flat against the dish face.<br><br>If your dish scale is pre-calibrated for offset, set it to <strong style="color:var(--accent3)">${ready ? state.elevation.toFixed(1) : '--'}°</strong> instead. Tighten elevation bolts when done.`) +
+        `<button class="btn btn-primary btn-full mt-8" onclick="startMeasure('dishtilt')">📡 Measure Dish Tilt</button>`;
+      break;
+    case 3:
+      html = head('Step 4 — Azimuth Sweep') +
+        (ready ? big(state.azimuth.toFixed(1) + '°', 'var(--accent)') : '') +
+        sub(`Rotate the dish slowly toward the azimuth above (true north). Use the AR view with the phone placed at the LNB arm position, or the Sun Compass if the magnetic compass is unstable.<br><br>Sweep VERY slowly — about 1° per second — while watching signal. When found, tighten azimuth bolts gradually in cross pattern while watching signal doesn't drop.`) +
+        `<div class="row mt-8">
+          <button class="btn btn-primary" onclick="switchTab('ar')">📷 Open AR View</button>
+          <button class="btn btn-secondary" onclick="switchTab('tools')">☀️ Sun Compass</button>
+        </div>`;
+      break;
+    case 4:
+      html = head('Step 5 — LNB Skew') +
+        (ready ? big((state.skew >= 0 ? '+' : '') + state.skew.toFixed(1) + '°', 'var(--accent2)') : '') +
+        sub(`Rotate the LNB in its holder to the skew angle above. Positive = clockwise when FACING the dish from the front. Most LNBs have degree marks on the body.<br><br>Correct skew separates H/V polarization — wrong skew causes weak signal on half the channels.`) +
+        `<button class="btn btn-primary btn-full mt-8" onclick="startMeasure('skew')">🔄 Measure LNB Skew</button>`;
+      break;
+    case 5:
+      html = head('Step 6 — Verify Signal') +
+        sub(`Connect the receiver, open its signal meter on a known transponder (see Frequency Reference in TOOLS). Log readings in the Signal tab while micro-adjusting azimuth ±2°, then elevation ±1°, then skew ±2°. Lock in the peak. Quality (SNR) matters more than strength.`) +
+        `<button class="btn btn-primary btn-full mt-8" onclick="switchTab('signal')">📶 Open Signal Logger</button>`;
+      break;
+    case 6:
+      html = head('Step 7 — Save the Job') +
+        sub(`Tighten everything. Take a photo of the final dish position and meter reading. Save the job with site name and notes — next visit or service call will be instant.`) +
+        `<button class="btn btn-success btn-full mt-8" onclick="switchTab('jobs')">💾 Save Job</button>`;
+      break;
+  }
+  body.innerHTML = html;
+  document.getElementById('wizBackBtn').style.visibility = wizStep === 0 ? 'hidden' : '';
+  document.getElementById('wizNextBtn').textContent = wizStep === WIZ_STEPS.length - 1 ? '✓ Finish' : 'Next →';
+}
+
+function wizNext() {
+  if (wizStep < WIZ_STEPS.length - 1) { wizStep++; renderWizard(); }
+  else { wizStep = 0; renderWizard(); }
+}
+function wizPrev() { if (wizStep > 0) { wizStep--; renderWizard(); } }
+
+// ============================================================
+// PWA — offline support
+// ============================================================
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+// Sun compass live update
+sunTimer = setInterval(updateSunCompass, 1000);
 
 // Redraw canvases on resize
 window.addEventListener('resize', () => {
